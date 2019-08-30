@@ -1,0 +1,37 @@
+{
+  "name": "jurioracle",
+  "version": "0.1.0",
+  "description": "Contracts to enable decentralized oracle infrastructure for Juri nodes",
+  "main": "index.js",
+  "scripts": {
+    "test": "bash scripts/run_test.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juriproject/JuriOracle.git"
+  },
+  "keywords": [
+    "oracle",
+    "Juri"
+  ],
+  "author": "Markus Waas",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/juriproject/JuriOracle/issues"
+  },
+  "homepage": "https://github.com/juriproject/JuriOracle#readme",
+  "devDependencies": {
+    "babel-eslint": "^10.0.3",
+    "chai": "^4.2.0",
+    "eslint": "^6.2.2",
+    "eslint-config-prettier": "^6.1.0",
+    "eslint-plugin-prettier": "^3.1.0",
+    "heap": "^0.2.6",
+    "prettier": "^1.18.2",
+    "truffle": "^5.0.34",
+    "truffle-hdwallet-provider": "^1.0.17"
+  },
+  "dependencies": {
+    "openzeppelin-test-helpers": "^0.3.2"
+  }
+}
