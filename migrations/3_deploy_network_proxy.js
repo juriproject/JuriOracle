@@ -1,6 +1,6 @@
 const BN = require('bn.js')
 
-// const { users } = require('../scripts/research/accounts')
+const { users } = require('../config/accounts')
 
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
 const JuriTokenMock = artifacts.require('./JuriTokenMock.sol')
@@ -24,8 +24,8 @@ module.exports = deployer => {
     await deployer.deploy(MaxHeapLibrary)
     await deployer.link(MaxHeapLibrary, [JuriNetworkProxy])
 
-    // const skaleFileStorage = await deployer.deploy(SkaleFileStorageMock)
-    const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
+    const skaleFileStorage = await deployer.deploy(SkaleFileStorageMock)
+    // const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
     const juriToken = await deployer.deploy(JuriTokenMock)
     const juriFeesToken = await deployer.deploy(ERC20Mintable)
     const juriFoundation = '0x15ae150d7dc03d3b635ee90b85219dbfe071ed35'
@@ -35,7 +35,7 @@ module.exports = deployer => {
       JuriNetworkProxy,
       juriFeesToken.address,
       juriToken.address,
-      skaleFileStorage, // skaleFileStorage.address,
+      skaleFileStorage.address, // skaleFileStorage.address,
       juriFoundation,
       FIFTEEN_MINUTES, // ONE_WEEK,
       TWO_MINUTES,
@@ -77,10 +77,10 @@ module.exports = deployer => {
       maxTotalStake,
       juriAddress
     )
-    /* const pool1Users = users
+    const pool1Users = users
       .slice(0, users.length / 2)
       .map(({ address }) => address)
-    await stakingContract1.insertUsers(pool1Users) */
+    await stakingContract1.insertUsers(pool1Users)
 
     const stakingContract2 = await deployer.deploy(
       JuriStakingPoolWithOracleMock,
@@ -97,10 +97,10 @@ module.exports = deployer => {
       juriAddress
     )
 
-    /* const pool2Users = users
+    const pool2Users = users
       .slice(users.length / 2)
       .map(({ address }) => address)
-    await stakingContract2.insertUsers(pool2Users) */
+    await stakingContract2.insertUsers(pool2Users)
 
     await networkProxy.registerJuriStakingPool(stakingContract1.address)
     await networkProxy.registerJuriStakingPool(stakingContract2.address)
