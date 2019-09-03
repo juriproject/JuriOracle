@@ -358,6 +358,8 @@ contract JuriBonding is Ownable {
 
     function getAllStakingNodes() public view returns (address[] memory) {
         uint256 stakingNodesCount = stakingNodes.sizeOf();
+        require(stakingNodesCount > 0, 'No nodes available!');
+
         address[] memory stakingNodesList = new address[](stakingNodesCount);
 
         stakingNodesList[0] = stakingNodes.list[HEAD][NEXT];

@@ -15,6 +15,7 @@ function truffleConfig({
   urlMainnet = 'https://mainnet.infura.io',
   urlSkaleMain = 'http://134.209.56.46:1919',
   urlSkaleSide = 'http://165.22.133.157:10101',
+  urlAwsController = 'http://ec2-13-239-37-134.ap-southeast-2.compute.amazonaws.com:7545',
   urlDevelopment = 'localhost',
   portDevelopment = 7545,
 } = {}) {
@@ -60,6 +61,12 @@ function truffleConfig({
       },
       skaleSide: {
         provider: _getProvider(urlSkaleSide, process.env.KEY),
+        gas: 50000000,
+        gasPrice: 0,
+        network_id: '*',
+      },
+      awsController: {
+        provider: _getProvider(urlAwsController),
         gas: 50000000,
         gasPrice: 0,
         network_id: '*',
