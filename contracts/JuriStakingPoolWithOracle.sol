@@ -81,4 +81,12 @@ contract JuriStakingPoolWithOracle is JuriStakingPool {
             currentStakingRound.stage = Stages.AWAITING_FIRST_UPDATE;
         }
     }
+
+    function _handleJuriFees() private {
+        token.approve(address(proxy), currentStakingRound.juriFees);
+        proxy.handleJuriFees(
+            currentStakingRound.roundIndex,
+            currentStakingRound.juriFees
+        );
+    }
 }

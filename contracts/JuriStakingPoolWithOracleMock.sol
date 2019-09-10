@@ -34,4 +34,9 @@ contract JuriStakingPoolWithOracleMock is JuriStakingPoolWithOracle {
             users.push(_users[i]);
         }
     }
+
+    function handleJuriFees(uint256 _roundIndex, uint256 _juriFees) external {
+        token.approve(address(proxy), _juriFees);
+        proxy.handleJuriFees(_roundIndex, _juriFees);
+    }
 }

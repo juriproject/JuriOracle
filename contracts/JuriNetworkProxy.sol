@@ -95,11 +95,12 @@ contract JuriNetworkProxy is Ownable {
     uint256 public roundIndex;
     uint256 public startTime;
     uint256 public lastStageUpdate;
-    uint256 public totalJuriFees;
     uint256 public nodeVerifierCount;
     address[] public registeredJuriStakingPools;
     address[] public dissentedUsers;
 
+    mapping (uint256 => mapping (address => uint256)) public totalJuriFeesAtWithdrawalTimes;
+    mapping (uint256 => uint256) public totalJuriFees;
     mapping (uint256 => uint256) public timesForStages;
     mapping (address => bool) public isRegisteredJuriStakingPool;
     mapping (uint256 => JuriRound) internal stateForRound;
@@ -148,7 +149,6 @@ contract JuriNetworkProxy is Ownable {
         roundIndex = 0;
         startTime = now;
         lastStageUpdate = now;
-        totalJuriFees = 0;
         nodeVerifierCount = 1;
     }
 
@@ -187,8 +187,6 @@ contract JuriNetworkProxy is Ownable {
         // maybe also count only active nodes
         // https://juriproject.slack.com/archives/CHKB3D1GF/p1565926038000200
         nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
-        totalJuriFees = juriFeesToken.balanceOf(address(this));
-
         currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
     }
 
@@ -196,6 +194,14 @@ contract JuriNetworkProxy is Ownable {
     function moveToNextStage() public {
         currentStage = Stages((uint256(currentStage) + 1) % 7);
         lastStageUpdate = now;
+
+        if (currentStage == Stages.USER_ADDING_HEART_RATE_DATA) {
+            roundIndex++;
+
+            bonding.moveToNextRound(roundIndex);
+            dissentedUsers = new address[](0);
+            nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
+        }
     }
 
     // TODO remove
@@ -215,7 +221,6 @@ contract JuriNetworkProxy is Ownable {
         dissentedUsers = new address[](0);
         // nodeVerifierCount = bonding.totalNodesCount(roundIndex).div(3);
         nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
-        totalJuriFees = juriFeesToken.balanceOf(address(this));
     }
 
     function moveToDissentPeriod()
@@ -376,25 +381,42 @@ contract JuriNetworkProxy is Ownable {
         address node = msg.sender;
         NodeState memory nodeState = stateForRound[_roundIndex].nodeStates[node];
         uint256 activityCount = nodeState.activityCount;
+        uint256 totalJuriFeesForRound = totalJuriFees[_roundIndex];
+        uint256 alreadyWithdrawnJuriFees
+            = totalJuriFeesAtWithdrawalTimes[_roundIndex][msg.sender];
+        uint256 newFeesToWithdraw = totalJuriFeesForRound.sub(alreadyWithdrawnJuriFees);
 
         require(_roundIndex < roundIndex, "Round not yet finished!");
-        require(
-            !nodeState.hasRetrievedRewards,
-            "You already retrieved your rewards this round!"
-        );
         require(activityCount > 0, "Node did not participate this round!");
+        require(newFeesToWithdraw > 0, "Nothing available to withdraw!");
 
         uint256 multiplier = 1000000;
         uint256 totalNodeActivityCount
             = stateForRound[_roundIndex].totalActivityCount;
         uint256 activityShare = activityCount.mul(multiplier).div(totalNodeActivityCount);
-        uint256 juriFeesTokenAmount = totalJuriFees.mul(activityShare).div(multiplier);
+        uint256 juriFeesTokenAmount = newFeesToWithdraw
+            .mul(activityShare)
+            .div(multiplier);
 
+        totalJuriFeesAtWithdrawalTimes[_roundIndex][msg.sender] = totalJuriFeesForRound;
         stateForRound[_roundIndex].nodeStates[node].hasRetrievedRewards = true;
         juriFeesToken.transfer(node, juriFeesTokenAmount);
     }
 
     /// INTERFACE METHODS
+
+    function handleJuriFees(
+        uint256 _roundIndex,
+        uint256 _juriFeesTokenAmount
+    ) external {
+        require(
+            juriFeesToken.transferFrom(msg.sender, address(this), _juriFeesTokenAmount),
+            'JuriStakingPool does not have sufficient Juri fee tokens!'
+        );
+
+        totalJuriFees[_roundIndex]
+            = totalJuriFees[_roundIndex].add(_juriFeesTokenAmount);
+    }
 
     function getUserWorkAssignmentHashes(uint256 _roundIndex, address _user)
         public

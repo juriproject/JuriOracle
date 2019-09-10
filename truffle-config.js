@@ -6,6 +6,8 @@ const DEFAULT_MNEMONIC =
   'candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'
 const GAS_LIMIT = 6.5e6
 
+const awsControllerUrl = require('../JuriNodeApp/management/awsControllerUrl')
+
 function truffleConfig({
   mnemonic = DEFAULT_MNEMONIC,
   gasPriceGWei = DEFAULT_GAS_PRICE_GWEI,
@@ -15,7 +17,7 @@ function truffleConfig({
   urlMainnet = 'https://mainnet.infura.io',
   urlSkaleMain = 'http://134.209.56.46:1919',
   urlSkaleSide = 'http://165.22.133.157:10101',
-  urlAwsController = 'http://ec2-13-239-37-134.ap-southeast-2.compute.amazonaws.com:7545',
+  urlAwsController = `http://${awsControllerUrl}:7545`,
   urlDevelopment = 'localhost',
   portDevelopment = 7545,
 } = {}) {
