@@ -17,6 +17,7 @@ function truffleConfig({
   urlMainnet = 'https://mainnet.infura.io',
   urlSkaleMain = 'http://134.209.56.46:1919',
   urlSkaleSide = 'http://165.22.133.157:10101',
+  // urlSkaleSide = 'https://sip0.skalenodes.com:10018',
   urlAwsController = `http://${awsControllerUrl}:7545`,
   urlDevelopment = 'localhost',
   portDevelopment = 7545,

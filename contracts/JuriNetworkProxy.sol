@@ -5,6 +5,7 @@ import "./lib/Ownable.sol";
 import "./lib/SafeMath.sol";
 
 import "./JuriBonding.sol";
+import "./SkaleMessageProxyInterface.sol";
 import "./lib/custom/MaxHeapLibrary.sol";
 import "./lib/custom/SkaleFileStorageInterface.sol";
 
@@ -17,6 +18,8 @@ contract JuriNetworkProxy is Ownable {
 
     event OLD_MAX(bytes32 maxVerifierHash);
     event NEW_MAX(bytes32 maxVerifierHash);
+
+    uint256 constant MAX_NODES_PER_UPDATE = 2; // TODO
 
     enum Stages {
         USER_ADDING_HEART_RATE_DATA,
@@ -48,13 +51,14 @@ contract JuriNetworkProxy is Ownable {
     struct NodeState {
         mapping (address => NodeForUserState) nodeForUserStates;
         bool hasRetrievedRewards;
-        uint256 activityCount;
+        uint32 activityCount;
     }
 
     struct JuriRound {
         mapping (address => UserState) userStates;
         mapping (address => NodeState) nodeStates;
-        uint256 totalActivityCount;
+        uint256 nodesUpdateIndex;
+        uint32 totalActivityCount;
     }
 
     /**
@@ -89,7 +93,9 @@ contract JuriNetworkProxy is Ownable {
 
     JuriBonding public bonding;
     IERC20 public juriFeesToken;
+    SkaleMessageProxyInterface public skaleMessageProxy;
     SkaleFileStorageInterface public skaleFileStorage;
+    address public juriTokenAddress;
 
     Stages public currentStage;
     uint256 public roundIndex;
@@ -108,42 +114,36 @@ contract JuriNetworkProxy is Ownable {
     constructor(
         IERC20 _juriFeesToken,
         IERC20 _juriToken,
+        SkaleMessageProxyInterface _skaleMessageProxy,
         SkaleFileStorageInterface _skaleFileStorage,
         address _juriFoundation,
-        uint256 _timeForAddingHeartRateData,
-        uint256 _timeForCommitmentStage,
-        uint256 _timeForRevealStage,
-        uint256 _timeForDissentStage,
-        uint256 _timeForDissentCommitmentStage,
-        uint256 _timeForDissentRevealStage,
-        uint256 _timeForSlashingStage,
-        uint256 _minStakePerNode,
-        uint256 _offlinePenalty,
-        uint256 _notRevealPenalty,
-        uint256 _incorrectResultPenalty,
-        uint256 _incorrectDissentPenalty
+        uint256[] memory _times,
+        uint256[] memory _penalties,
+        uint256 _minStakePerNode
     ) public {
-        timesForStages[uint256(Stages.USER_ADDING_HEART_RATE_DATA)] = _timeForAddingHeartRateData;
-        timesForStages[uint256(Stages.NODES_ADDING_RESULT_COMMITMENTS)] = _timeForCommitmentStage;
-        timesForStages[uint256(Stages.NODES_ADDING_RESULT_REVEALS)] = _timeForRevealStage;
-        timesForStages[uint256(Stages.DISSENTING_PERIOD)] = _timeForDissentStage;
-        timesForStages[uint256(Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS)] = _timeForDissentCommitmentStage;
-        timesForStages[uint256(Stages.DISSENTS_NODES_ADDING_RESULT_REVEALS)] = _timeForDissentRevealStage;
-        timesForStages[uint256(Stages.SLASHING_PERIOD)] = _timeForSlashingStage;
+        timesForStages[uint256(Stages.USER_ADDING_HEART_RATE_DATA)] = _times[0];
+        timesForStages[uint256(Stages.NODES_ADDING_RESULT_COMMITMENTS)] = _times[1];
+        timesForStages[uint256(Stages.NODES_ADDING_RESULT_REVEALS)] = _times[2];
+        timesForStages[uint256(Stages.DISSENTING_PERIOD)] = _times[3];
+        timesForStages[uint256(Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS)] = _times[4];
+        timesForStages[uint256(Stages.DISSENTS_NODES_ADDING_RESULT_REVEALS)] = _times[5];
+        timesForStages[uint256(Stages.SLASHING_PERIOD)] = _times[6];
 
         bonding = new JuriBonding(
             this,
             _juriToken,
             _juriFoundation,
             _minStakePerNode,
-            _offlinePenalty,
-            _notRevealPenalty,
-            _incorrectResultPenalty,
-            _incorrectDissentPenalty
+            _penalties[0],
+            _penalties[1],
+            _penalties[2],
+            _penalties[3]
         );
         isRegisteredJuriStakingPool[address(bonding)] = true;
 
+        skaleMessageProxy = _skaleMessageProxy;
         skaleFileStorage = _skaleFileStorage;
+        juriTokenAddress = address(_juriToken);
         juriFeesToken = _juriFeesToken;
         currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
         roundIndex = 0;
@@ -210,17 +210,59 @@ contract JuriNetworkProxy is Ownable {
         lastStageUpdate = now;
     }
 
-    function moveToNextRound()
+    // TODO What if not called in time?
+    function moveToNextRound(uint256 nodesCount)
         public
         atStage(Stages.SLASHING_PERIOD)
         checkIfNextStage {
-        roundIndex++;
+        uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
+        uint32 totalActivity
+            = stateForRound[roundIndex].totalActivityCount;
+        uint256 totalBonded = bonding.totalBonded();
 
-        bonding.moveToNextRound(roundIndex);
-    
-        dissentedUsers = new address[](0);
-        // nodeVerifierCount = bonding.totalNodesCount(roundIndex).div(3);
-        nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
+        uint256 totalNodesCount = bonding.stakingNodesAddressCount(roundIndex);
+        uint256 updateNodesCount = totalNodesCount > MAX_NODES_PER_UPDATE
+            ? MAX_NODES_PER_UPDATE
+            : totalNodesCount;
+
+        address[] memory nodesToUpdate
+            = bonding.receiveNodesAtIndex(nodesUpdateIndex, MAX_NODES_PER_UPDATE);
+        uint32[] memory nodesActivity = new uint32[](updateNodesCount);
+        
+        for (uint256 i = 0; i < updateNodesCount; i++) {
+            nodesActivity[i]
+                = _getCurrentStateForNode(nodesToUpdate[i]).activityCount;
+        }
+
+        bool isFirstAddition = nodesUpdateIndex == 0;
+
+        bytes memory data = _encodeIMABytes(
+            isFirstAddition,
+            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
+            isFirstAddition ? bonding.totalBonded() : 0,
+            nodesToUpdate,
+            nodesActivity
+        );
+
+        skaleMessageProxy.postOutgoingMessage(
+            'Mainnet', 
+            juriTokenAddress, // TODO
+            0, // amount ?
+            address(0), // to ? 
+            data
+            // bytes calldata bls
+        );
+
+        stateForRound[roundIndex].nodesUpdateIndex
+            = nodesUpdateIndex.add(updateNodesCount);
+
+        if (stateForRound[roundIndex].nodesUpdateIndex >= totalNodesCount) {
+            roundIndex++;
+            bonding.moveToNextRound(roundIndex);
+            dissentedUsers = new address[](0);
+            // nodeVerifierCount = bonding.totalNodesCount(roundIndex).div(3);
+            nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
+        }
     }
 
     function moveToDissentPeriod()
@@ -380,7 +422,7 @@ contract JuriNetworkProxy is Ownable {
     function retrieveRoundJuriFees(uint256 _roundIndex) public {
         address node = msg.sender;
         NodeState memory nodeState = stateForRound[_roundIndex].nodeStates[node];
-        uint256 activityCount = nodeState.activityCount;
+        uint256 activityCount = uint256(nodeState.activityCount);
         uint256 totalJuriFeesForRound = totalJuriFees[_roundIndex];
         uint256 alreadyWithdrawnJuriFees
             = totalJuriFeesAtWithdrawalTimes[_roundIndex][msg.sender];
@@ -392,7 +434,7 @@ contract JuriNetworkProxy is Ownable {
 
         uint256 multiplier = 1000000;
         uint256 totalNodeActivityCount
-            = stateForRound[_roundIndex].totalActivityCount;
+            = uint256(stateForRound[_roundIndex].totalActivityCount);
         uint256 activityShare = activityCount.mul(multiplier).div(totalNodeActivityCount);
         uint256 juriFeesTokenAmount = newFeesToWithdraw
             .mul(activityShare)
@@ -430,6 +472,13 @@ contract JuriNetworkProxy is Ownable {
         view
         returns (bool) {
         return stateForRound[_roundIndex].userStates[_user].dissented;
+    }
+
+    function getHeartRateDataStoragePath(uint256 _roundIndex, address _user)
+        public
+        view
+        returns (string memory) {
+        return stateForRound[_roundIndex].userStates[_user].userHeartRateDataStoragePath;
     }
 
     function getComplianceDataBeforeDissent(uint256 _roundIndex, address _user)
@@ -546,27 +595,108 @@ contract JuriNetworkProxy is Ownable {
     }
 
     /// PRIVATE METHODS
+    function _encodeIMABytes(
+        bool _isFirstAddition,
+        uint32 _totalActivity,
+        uint256 _totalBonded,
+        address[] memory _nodes,
+        uint32[] memory _nodeActivities
+    ) public pure returns (bytes memory) {
+        uint8 isFirstAddition = _isFirstAddition ? 1 : 0;
+        uint256 firstAdditionAddedDataLength = 37;
+        uint256 nodesCount = _nodes.length;
+        uint256 nodesDataLength = nodesCount * 24;
+        uint256 totalDataLength = nodesDataLength
+            + (_isFirstAddition ? firstAdditionAddedDataLength : 1);
+        bytes memory result = new bytes(totalDataLength);
+
+        uint256 beginningDest;
+        
+        assembly {
+            beginningDest := add(result, 32)
+            mstore8(beginningDest, isFirstAddition)
+        }
+
+        if (_isFirstAddition) {
+            uint256 totalActivityDest = beginningDest + 1;
+            uint256 totalBondedDest = totalActivityDest + 4;
+
+            assembly {
+                mstore8(totalActivityDest, shr(24, _totalActivity))
+                mstore8(add(totalActivityDest, 1), shr(16, _totalActivity))
+                mstore8(add(totalActivityDest, 2), shr(8, _totalActivity))
+                mstore8(add(totalActivityDest, 3), _totalActivity)
+                mstore(totalBondedDest, _totalBonded)
+            }
+        }
+
+        uint256 nodesDest = _isFirstAddition
+            ? beginningDest + firstAdditionAddedDataLength
+            : beginningDest + 1;
+        uint256 nodesActivityDest = nodesDest + 20 * _nodes.length;
+
+        for (uint256 i = 0; i < _nodes.length; i++) {
+            address node = _nodes[i];
+            uint256 nodeDest = nodesDest + 20 * i;
+            
+            assembly {
+                mstore8(nodeDest, shr(152, node))
+                mstore8(add(nodeDest, 1), shr(144, node))
+                mstore8(add(nodeDest, 2), shr(136, node))
+                mstore8(add(nodeDest, 3), shr(128, node))
+                mstore8(add(nodeDest, 4), shr(120, node))
+                mstore8(add(nodeDest, 5), shr(112, node))
+                mstore8(add(nodeDest, 6), shr(104, node))
+                mstore8(add(nodeDest, 7), shr(96, node))
+                mstore8(add(nodeDest, 8), shr(88, node))
+                mstore8(add(nodeDest, 9), shr(80, node))
+                mstore8(add(nodeDest, 10), shr(72, node))
+                mstore8(add(nodeDest, 11), shr(64, node))
+                mstore8(add(nodeDest, 12), shr(56, node))
+                mstore8(add(nodeDest, 13), shr(48, node))
+                mstore8(add(nodeDest, 14), shr(40, node))
+                mstore8(add(nodeDest, 15), shr(32, node))
+                mstore8(add(nodeDest, 16), shr(24, node))
+                mstore8(add(nodeDest, 17), shr(16, node))
+                mstore8(add(nodeDest, 18), shr(8, node))
+                mstore8(add(nodeDest, 19), node)
+            }
+        }
+        
+        for (uint256 i = 0; i < _nodeActivities.length; i++) {
+            uint256 nodeActivity = uint256(_nodeActivities[i]);
+            uint256 nodeActivityDest = nodesActivityDest + 4 * i;
+    
+            assembly {
+                mstore8(nodeActivityDest, shr(24, nodeActivity))
+                mstore8(add(nodeActivityDest, 1), shr(16, nodeActivity))
+                mstore8(add(nodeActivityDest, 2), shr(8, nodeActivity))
+                mstore8(add(nodeActivityDest, 3), nodeActivity)
+            }
+        }
+
+        return result;
+    }
 
     function _increaseActivityCountForNode(
         address _node,
-        uint256 _activityCount
+        uint32 _activityCount
     ) internal {
         stateForRound[roundIndex]
             .nodeStates[_node]
             .activityCount = _getCurrentStateForNode(_node)
-                .activityCount
-                .add(_activityCount);
+                .activityCount + _activityCount;
         stateForRound[roundIndex].totalActivityCount
-            = stateForRound[roundIndex].totalActivityCount.add(_activityCount);
+            = stateForRound[roundIndex].totalActivityCount + _activityCount;
     }
 
     function _decrementActivityCountForNode(address _node) internal {
         stateForRound[roundIndex]
             .nodeStates[_node]
             .activityCount
-                = _getCurrentStateForNode(_node).activityCount.sub(1);
+                = _getCurrentStateForNode(_node).activityCount - 1;
         stateForRound[roundIndex].totalActivityCount
-            = stateForRound[roundIndex].totalActivityCount.sub(1);
+            = stateForRound[roundIndex].totalActivityCount - 1;
     }
 
     function _moveToNextStage() internal {
@@ -633,7 +763,7 @@ contract JuriNetworkProxy is Ownable {
             // dont count dissent rounds as activity
             // because nodes have an incentive anyways to participate
             // due to not getting offline slashed
-            _increaseActivityCountForNode(node, validUserCount);
+            _increaseActivityCountForNode(node, uint32(validUserCount));
         }
     }
 

@@ -24,8 +24,8 @@ module.exports = deployer => {
     await deployer.deploy(MaxHeapLibrary)
     await deployer.link(MaxHeapLibrary, [JuriNetworkProxy])
 
-    const skaleFileStorage = await deployer.deploy(SkaleFileStorageMock)
-    // const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
+    // const skaleFileStorage = await deployer.deploy(SkaleFileStorageMock)
+    const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
     const juriToken = await deployer.deploy(JuriTokenMock)
     const juriFeesToken = await deployer.deploy(ERC20Mintable)
     const juriFoundation = '0x15ae150d7dc03d3b635ee90b85219dbfe071ed35'
@@ -35,7 +35,7 @@ module.exports = deployer => {
       JuriNetworkProxy,
       juriFeesToken.address,
       juriToken.address,
-      skaleFileStorage.address, // skaleFileStorage.address,
+      skaleFileStorage, // skaleFileStorage.address,
       juriFoundation,
       FIFTEEN_MINUTES, // ONE_WEEK,
       TWO_MINUTES,

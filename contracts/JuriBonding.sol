@@ -372,6 +372,35 @@ contract JuriBonding is Ownable {
         return stakingNodesList;
     }
 
+    function receiveNodesAtIndex(
+        uint256 _nodeIndex,
+        uint256 _nodesCount
+    ) public view returns (address[] memory) {
+        require(
+            _nodesCount > 0,
+            'Passed nodes count must be greater than 0!'
+        );
+
+        address[] memory resultNodesList = new address[](_nodesCount);
+
+        address node = stakingNodes.list[HEAD][NEXT];
+
+        for (uint256 i = 1; i < _nodeIndex + _nodesCount; i++) {
+            require(
+                node != HEAD,
+                'Nodes list too short for given node index or count!'
+            );
+
+            if (i > _nodeIndex) {
+                resultNodesList[i - _nodeIndex] = node;
+            }
+
+            node = stakingNodes.list[node][NEXT];
+        }
+
+        return resultNodesList;
+    }
+
     function _slashStake(
         uint256 _roundIndex,
         address _from,
