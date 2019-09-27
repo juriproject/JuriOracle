@@ -1,25 +1,33 @@
 pragma solidity 0.5.10;
 
 import "./JuriToken.sol";
-import "./SkaleMessageProxyInterface.sol";
 
-contract SkaleMessageProxy is SkaleMessageProxyInterface {
+contract SkaleMessageProxy {
     JuriToken public juriToken;
 
     constructor(address _juriTokenAddress) public {
         juriToken = JuriToken(_juriTokenAddress);
     }
 
-    function postOutgoingMessage(
-        string calldata dstChainID, 
-        address dstContract, 
-        uint256 amount, 
-        address to, 
+    function postMessage(
+        address sender, 
+        string calldata fromSchainID, 
+        address payable to, 
+        uint amount, 
         bytes calldata data
-        // bytes calldata bls
     ) external {
+        // TODO ?
+        /* require(
+            msg.sender == skaleDataLock,
+            'Only the SKALE data lock is allowed to call this function!'
+        ); */
+
+        /* require(
+            sender == juriNetworkProxyAddress,
+            'Only the JuriNetworkProxy is allowed to call this function!'
+        ); */
         require(
-            dstContract == address(juriToken),
+            to == address(juriToken),
             'You may only send messages to the JuriToken!'
         );
         require(

@@ -1,0 +1,888 @@
+{
+    "message_proxy_for_schain_address": "0xC2e13593817929dcaB42Be850E582da52C980cB1",
+    "lock_and_data_for_mainnet_address": "0xE407A4F9A1bB49F2Fa9A8939b4f3e2E864da0A36",
+    "lock_and_data_for_mainnet_abi": [
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "bytes32" }],
+        "name": "tokenManagerAddresses",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x10f01f4e"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "bytes32" }],
+        "name": "permitted",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x3a2bfd7f"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "address" }],
+        "name": "approveTransfers",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x5647d689"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "address" }],
+        "name": "authorizedCaller",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x98f6ef12"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "name": "from", "type": "address" },
+          { "indexed": false, "name": "amount", "type": "uint256" }
+        ],
+        "name": "MoneyReceived",
+        "type": "event",
+        "signature": "0x27b15ed4cf832749ed39f33a64e4707ed60a761485e41ffec7343ecaddc0c02a"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "name": "to", "type": "address" },
+          { "indexed": false, "name": "amount", "type": "uint256" },
+          { "indexed": false, "name": "message", "type": "string" }
+        ],
+        "name": "Error",
+        "type": "event",
+        "signature": "0x180f996f3e0370ec3b6ff172d1a35bc52ed44a67fbc7cb98df4b83ea5d826850"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "from", "type": "address" }],
+        "name": "receiveEth",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0xd880cac8"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "contractName", "type": "string" },
+          { "name": "newContract", "type": "address" }
+        ],
+        "name": "setContract",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x3f0ed0df"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "schainID", "type": "string" }],
+        "name": "hasSchain",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x041f4c9b"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "tokenManagerAddress", "type": "address" }
+        ],
+        "name": "addSchain",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xb4e91a32"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "schainID", "type": "string" }],
+        "name": "removeSchain",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x56cb6b30"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "caller", "type": "address" }],
+        "name": "addAuthorizedCaller",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x13a155ea"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "caller", "type": "address" }],
+        "name": "removeAuthorizedCaller",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xb7aa0231"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "approveTransfer",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xfa02c4b7"
+      },
+      {
+        "constant": false,
+        "inputs": [],
+        "name": "getMyEth",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x0bfb82a1"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "sendEth",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x49dcbc5e"
+      }
+    ],
+    "deposit_box_address": "0x8FDF00FdC9225735961f77d1DE8A2B5D06Fdf118",
+    "deposit_box_abi": [
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "GAS_AMOUNT_POST_MESSAGE",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x037489c0"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "proxyAddress",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x23f5c02d"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "AVERAGE_TX_PRICE",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x2be1a374"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [
+          { "name": "newProxyAddress", "type": "address" },
+          { "name": "newLockAndDataAddress", "type": "address" }
+        ],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      { "payable": true, "stateMutability": "payable", "type": "fallback" },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "name": "sender", "type": "address" },
+          { "indexed": false, "name": "fromSchainID", "type": "string" },
+          { "indexed": false, "name": "to", "type": "address" },
+          { "indexed": false, "name": "amount", "type": "uint256" },
+          { "indexed": false, "name": "data", "type": "bytes" }
+        ],
+        "name": "MoneyReceivedMessage",
+        "type": "event",
+        "signature": "0x00670ab4fd5470d373f16d558b068a8ee931892dfb3bc7719c12d000308efb71"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "name": "sender", "type": "address" },
+          { "indexed": false, "name": "fromSchainID", "type": "string" },
+          { "indexed": false, "name": "to", "type": "address" },
+          { "indexed": false, "name": "amount", "type": "uint256" },
+          { "indexed": false, "name": "data", "type": "bytes" },
+          { "indexed": false, "name": "message", "type": "string" }
+        ],
+        "name": "Error",
+        "type": "event",
+        "signature": "0x7cd268b1bc6debb9029d4fbd617c165d4edbd7a19c96a3e7d510734fe936a954"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "to", "type": "address" }
+        ],
+        "name": "deposit",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0x9be37a97"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "deposit",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0xf5c0f916"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "depositERC20",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0xe56950be"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "contractHere", "type": "address" },
+          { "name": "contractThere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "rawDepositERC20",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0x8cddd42f"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "tokenId", "type": "uint256" }
+        ],
+        "name": "depositERC721",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0x59bd5099"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "schainID", "type": "string" },
+          { "name": "contractHere", "type": "address" },
+          { "name": "contractThere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "tokenId", "type": "uint256" }
+        ],
+        "name": "rawDepositERC721",
+        "outputs": [],
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "function",
+        "signature": "0x4f27d06c"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "sender", "type": "address" },
+          { "name": "fromSchainID", "type": "string" },
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "postMessage",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xa3c690d6"
+      }
+    ],
+    "lock_and_data_for_mainnet_erc20_address": "0xe28b946Ab1775D4352758911Cc06BBB88eC14B12",
+    "lock_and_data_for_mainnet_erc20_abi": [
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "address" }],
+        "name": "ERC20Mapper",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x869044f7"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "uint256" }],
+        "name": "ERC20Tokens",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0xcd0c92ea"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [{ "name": "lockAndDataAddress", "type": "address" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "result", "type": "bool" }],
+        "name": "SendedERC20",
+        "type": "event",
+        "signature": "0x346f76ac6a7581e8904eed70a6c9fc79091c252290525ebc1e839d6efaff0dcf"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "index", "type": "uint256" }],
+        "name": "AddedERC20Token",
+        "type": "event",
+        "signature": "0x7acfb5ee5cdf748a7fa936ed94066353934e028e64016ad4b0b9891b327a65e2"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" }
+        ],
+        "name": "sendERC20",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x8f975a64"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "addressERC20", "type": "address" }],
+        "name": "addERC20Token",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x971ccc16"
+      }
+    ],
+    "erc20_module_address": "0x000a0EB1cB1BF4D0334C45Ee26e23Bd8977a2a12",
+    "erc20_module_abi": [
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [{ "name": "newLockAndDataAddress", "type": "address" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "data", "type": "bytes" }],
+        "name": "EncodedData",
+        "type": "event",
+        "signature": "0xc7141718c98b98915637a29753ebd036f810bd5b325c3d1a9ce947794844ed6d"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "data", "type": "bytes" }],
+        "name": "EncodedRawData",
+        "type": "event",
+        "signature": "0x267f22bcd128bfd32d355f0cc8247ce86b8d2655706a572392251c20baaeb8e8"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "result", "type": "bool" }],
+        "name": "SentERC20",
+        "type": "event",
+        "signature": "0xdec09a80db382f5efe8c7ff75308e60eb9ee053950fcc4a698b8fdfdb3361a24"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "name": "tokenHere", "type": "address" },
+          { "indexed": false, "name": "contractPosition", "type": "uint256" }
+        ],
+        "name": "ERC20TokenAdded",
+        "type": "event",
+        "signature": "0xcd91532fdf792a63e2508c31041e551824b20b4533faba32451519a1fcddafd3"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "isRAW", "type": "bool" }
+        ],
+        "name": "receiveERC20",
+        "outputs": [{ "name": "data", "type": "bytes" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xb326164d"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "sendERC20",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xc7e4b28c"
+      },
+      {
+        "constant": true,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "getReceiver",
+        "outputs": [{ "name": "receiver", "type": "address" }],
+        "payable": false,
+        "stateMutability": "pure",
+        "type": "function",
+        "signature": "0x06788734"
+      }
+    ],
+    "lock_and_data_for_mainnet_erc721_address": "0xfeb620Db8B32d5e633F937437964d7692a4B9EAE",
+    "lock_and_data_for_mainnet_erc721_abi": [
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "uint256" }],
+        "name": "ERC721Tokens",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x3a24776d"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "address" }],
+        "name": "ERC721Mapper",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x431dec00"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [{ "name": "lockAndDataAddress", "type": "address" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "index", "type": "uint256" }],
+        "name": "AddedERC20Token",
+        "type": "event",
+        "signature": "0x7acfb5ee5cdf748a7fa936ed94066353934e028e64016ad4b0b9891b327a65e2"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "tokenId", "type": "uint256" }
+        ],
+        "name": "sendERC721",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xb72ac8ea"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "addressERC721", "type": "address" }],
+        "name": "addERC721Token",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xd771f0eb"
+      }
+    ],
+    "erc721_module_address": "0x07EBb8462205eB8eC85671342C2695b331Ca781d",
+    "erc721_module_abi": [
+      {
+        "constant": false,
+        "inputs": [{ "name": "newOwner", "type": "address" }],
+        "name": "transferOwnership",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf2fde38b"
+      },
+      {
+        "inputs": [{ "name": "newLockAndDataAddress", "type": "address" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "data", "type": "bytes" }],
+        "name": "EncodedData",
+        "type": "event",
+        "signature": "0xc7141718c98b98915637a29753ebd036f810bd5b325c3d1a9ce947794844ed6d"
+      },
+      {
+        "anonymous": false,
+        "inputs": [{ "indexed": false, "name": "data", "type": "bytes" }],
+        "name": "EncodedRawData",
+        "type": "event",
+        "signature": "0x267f22bcd128bfd32d355f0cc8247ce86b8d2655706a572392251c20baaeb8e8"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": true, "name": "tokenHere", "type": "address" },
+          { "indexed": false, "name": "contractPosition", "type": "uint256" }
+        ],
+        "name": "ERC721TokenAdded",
+        "type": "event",
+        "signature": "0x694f28b7e506e8b2409a4448adae1b891a5e41b8d5c49806c5cadcb1994ea233"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "contractHere", "type": "address" },
+          { "name": "to", "type": "address" },
+          { "name": "tokenId", "type": "uint256" },
+          { "name": "isRAW", "type": "bool" }
+        ],
+        "name": "receiveERC721",
+        "outputs": [{ "name": "data", "type": "bytes" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xf0ddd140"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "sendERC721",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xca6c6619"
+      },
+      {
+        "constant": true,
+        "inputs": [
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "getReceiver",
+        "outputs": [{ "name": "receiver", "type": "address" }],
+        "payable": false,
+        "stateMutability": "pure",
+        "type": "function",
+        "signature": "0x06788734"
+      }
+    ],
+    "message_proxy_mainnet_address": "0x9a539568cAc4d01d15f0fA32BD560bBe33aBD61e",
+    "message_proxy_mainnet_abi": [
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "owner",
+        "outputs": [{ "name": "", "type": "address" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x8da5cb5b"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "address" }],
+        "name": "authorizedCaller",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x98f6ef12"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "chainID",
+        "outputs": [{ "name": "", "type": "string" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0xadc879e9"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "", "type": "bytes32" }],
+        "name": "connectedChains",
+        "outputs": [
+          { "name": "incomingMessageCounter", "type": "uint256" },
+          { "name": "outgoingMessageCounter", "type": "uint256" },
+          { "name": "inited", "type": "bool" }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0xe6ab8403"
+      },
+      {
+        "inputs": [{ "name": "newChainID", "type": "string" }],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "constructor",
+        "signature": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          { "indexed": false, "name": "dstChain", "type": "string" },
+          { "indexed": true, "name": "dstChainHash", "type": "bytes32" },
+          { "indexed": true, "name": "msgCounter", "type": "uint256" },
+          { "indexed": true, "name": "srcContract", "type": "address" },
+          { "indexed": false, "name": "dstContract", "type": "address" },
+          { "indexed": false, "name": "to", "type": "address" },
+          { "indexed": false, "name": "amount", "type": "uint256" },
+          { "indexed": false, "name": "data", "type": "bytes" },
+          { "indexed": false, "name": "length", "type": "uint256" }
+        ],
+        "name": "OutgoingMessage",
+        "type": "event",
+        "signature": "0xa701ebe76260cb49bb2dc03cf8cf6dacbc4c59a5d615c4db34a7dfdf36e6b6dc"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "caller", "type": "address" }],
+        "name": "addAuthorizedCaller",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x13a155ea"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "caller", "type": "address" }],
+        "name": "removeAuthorizedCaller",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0xb7aa0231"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "someChainID", "type": "string" }],
+        "name": "isConnectedChain",
+        "outputs": [{ "name": "", "type": "bool" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x999ab9aa"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "newChainID", "type": "string" },
+          { "name": "newPublicKey", "type": "uint256[4]" }
+        ],
+        "name": "addConnectedChain",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x14b32bde"
+      },
+      {
+        "constant": false,
+        "inputs": [{ "name": "newChainID", "type": "string" }],
+        "name": "removeConnectedChain",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x3cdd2cc3"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "dstChainID", "type": "string" },
+          { "name": "dstContract", "type": "address" },
+          { "name": "amount", "type": "uint256" },
+          { "name": "to", "type": "address" },
+          { "name": "data", "type": "bytes" }
+        ],
+        "name": "postOutgoingMessage",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x2231691e"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          { "name": "srcChainID", "type": "string" },
+          { "name": "startingCounter", "type": "uint256" },
+          { "name": "senders", "type": "address[]" },
+          { "name": "dstContracts", "type": "address[]" },
+          { "name": "to", "type": "address[]" },
+          { "name": "amount", "type": "uint256[]" },
+          { "name": "data", "type": "bytes" },
+          { "name": "lengthOfData", "type": "uint256[]" }
+        ],
+        "name": "postIncomingMessages",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function",
+        "signature": "0x0ed29b33"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "dstChainID", "type": "string" }],
+        "name": "getOutgoingMessagesCounter",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x67ec6020"
+      },
+      {
+        "constant": true,
+        "inputs": [{ "name": "srcChainID", "type": "string" }],
+        "name": "getIncomingMessagesCounter",
+        "outputs": [{ "name": "", "type": "uint256" }],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function",
+        "signature": "0x77fe0f31"
+      }
+    ]
+  }
+  

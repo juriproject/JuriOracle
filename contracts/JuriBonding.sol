@@ -41,8 +41,8 @@ contract JuriBonding is Ownable {
     IERC20 public token;
     LinkedListLib.LinkedList stakingNodes;
 
-    address juriFoundation;
-    uint256 juriFoundationFunds;
+    address public juriFoundation;
+    uint256 public juriFoundationFunds;
 
     mapping (address => AllowedWithdrawalAfter) public allowedWithdrawalAmounts;
     mapping (uint256 => uint256) public stakingNodesAddressCount;
@@ -385,14 +385,14 @@ contract JuriBonding is Ownable {
 
         address node = stakingNodes.list[HEAD][NEXT];
 
-        for (uint256 i = 1; i < _nodeIndex + _nodesCount; i++) {
+        for (uint256 i = 1; i <= _nodeIndex + _nodesCount; i++) {
             require(
                 node != HEAD,
                 'Nodes list too short for given node index or count!'
             );
 
             if (i > _nodeIndex) {
-                resultNodesList[i - _nodeIndex] = node;
+                resultNodesList[i.sub(_nodeIndex).sub(1)] = node;
             }
 
             node = stakingNodes.list[node][NEXT];

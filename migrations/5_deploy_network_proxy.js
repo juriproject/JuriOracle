@@ -3,13 +3,21 @@ const BN = require('bn.js')
 const { users } = require('../config/accounts')
 
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
-const JuriTokenMock = artifacts.require('./JuriTokenMock.sol')
 const JuriNetworkProxy = artifacts.require('./JuriNetworkProxy.sol')
 const JuriStakingPoolWithOracleMock = artifacts.require(
   'JuriStakingPoolWithOracleMock'
 )
 const MaxHeapLibrary = artifacts.require('./MaxHeapLibrary.sol')
-const SkaleFileStorageMock = artifacts.require('./SkaleFileStorageMock.sol')
+
+const {
+  juriTokenMain,
+  juriTokenSide,
+  skaleMessageProxyMain,
+} = require('./data/deployed')
+
+const {
+  message_proxy_for_schain_address,
+} = require('../contracts/lib/skale/rinkeby_ABIs.json')
 
 // const ONE_HOUR = 60 * 60
 // const ONE_WEEK = ONE_HOUR * 24 * 7
@@ -24,9 +32,11 @@ module.exports = deployer => {
     await deployer.deploy(MaxHeapLibrary)
     await deployer.link(MaxHeapLibrary, [JuriNetworkProxy])
 
-    // const skaleFileStorage = await deployer.deploy(SkaleFileStorageMock)
+    /* const skaleFileStorage = await deployer.deploy(
+      artifacts.require('./SkaleFileStorageMock.sol')
+    ) */
     const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
-    const juriToken = await deployer.deploy(JuriTokenMock)
+
     const juriFeesToken = await deployer.deploy(ERC20Mintable)
     const juriFoundation = '0x15ae150d7dc03d3b635ee90b85219dbfe071ed35'
     const oneEther = '1000000000000000000'
@@ -34,21 +44,23 @@ module.exports = deployer => {
     const networkProxy = await deployer.deploy(
       JuriNetworkProxy,
       juriFeesToken.address,
-      juriToken.address,
+      juriTokenSide,
+      juriTokenMain,
+      message_proxy_for_schain_address,
+      skaleMessageProxyMain,
       skaleFileStorage, // skaleFileStorage.address,
       juriFoundation,
-      FIFTEEN_MINUTES, // ONE_WEEK,
-      TWO_MINUTES,
-      TWO_MINUTES,
-      TWO_MINUTES,
-      TWO_MINUTES,
-      TWO_MINUTES,
-      TWO_MINUTES,
-      oneEther,
-      10,
-      20,
-      30,
-      40
+      [
+        FIFTEEN_MINUTES, // ONE_WEEK,
+        TWO_MINUTES,
+        TWO_MINUTES,
+        TWO_MINUTES,
+        TWO_MINUTES,
+        TWO_MINUTES,
+        TWO_MINUTES,
+      ],
+      [10, 20, 30, 40],
+      oneEther
     )
 
     const startTime = new BN(Math.round(Date.now() / 1000)).add(

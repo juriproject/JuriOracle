@@ -3,7 +3,8 @@ const HDWalletProvider = require('truffle-hdwallet-provider')
 
 const DEFAULT_GAS_PRICE_GWEI = 50
 const DEFAULT_MNEMONIC =
-  'candy maple cake sugar pudding cream honey rich smooth crumble sweet treat'
+  'student still brass plug auto harvest sign dry bulb napkin bitter decrease'
+// 0x350c1088a07AfFCe586695A6a4500F261e68c350
 const GAS_LIMIT = 6.5e6
 
 const awsControllerUrl = require('../JuriNodeApp/management/awsControllerUrl')
@@ -13,11 +14,11 @@ function truffleConfig({
   gasPriceGWei = DEFAULT_GAS_PRICE_GWEI,
   gas = GAS_LIMIT,
   optimizedEnabled = false,
-  urlRinkeby = 'https://rinkeby.infura.io/',
-  urlMainnet = 'https://mainnet.infura.io',
+  urlRinkeby = 'https://rinkeby.infura.io/v3/4744851d37ac46bd95eddf0d50f062a4',
+  urlMainnet = 'https://mainnet.infura.io/v3/4744851d37ac46bd95eddf0d50f062a4',
   urlSkaleMain = 'http://134.209.56.46:1919',
-  urlSkaleSide = 'http://165.22.133.157:10101',
-  // urlSkaleSide = 'https://sip0.skalenodes.com:10018',
+  // urlSkaleSide = 'http://165.22.133.157:10101',
+  urlSkaleSide = 'https://sip0.skalenodes.com:10018',
   urlAwsController = `http://${awsControllerUrl}:7545`,
   urlDevelopment = 'localhost',
   portDevelopment = 7545,
@@ -84,6 +85,10 @@ function truffleConfig({
       solc: {
         version: '0.5.10',
       },
+    },
+    plugins: ['truffle-plugin-verify'],
+    api_keys: {
+      etherscan: process.env.ETHER_KEY,
     },
   }
 }

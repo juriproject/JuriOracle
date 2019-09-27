@@ -4,8 +4,7 @@ import "./lib/ERC20.sol";
 import "./lib/Ownable.sol";
 import "./lib/SafeMath.sol";
 
-import "./JuriBonding.sol";
-import "./JuriNetworkProxy.sol";
+import "./SkaleMessageProxy.sol";
 
 contract JuriToken is ERC20, Ownable {
     using SafeMath for uint256;
@@ -28,8 +27,8 @@ contract JuriToken is ERC20, Ownable {
 
     mapping (uint256 => mapping (address => bool)) public haveRetrievedRewards;
 
-    constructor(address _skaleMessageProxy) public {
-        skaleMessageProxy = _skaleMessageProxy;
+    constructor() public {
+        skaleMessageProxy = address(new SkaleMessageProxy(address(this)));
     }
 
     function setTargetBondingRate(uint256 _targetBondingRatePer1000000) public onlyOwner {
@@ -67,7 +66,6 @@ contract JuriToken is ERC20, Ownable {
         uint256 nodeActivityCount = nodesActivityCount[msg.sender];
 
         uint256 activityShare = nodeActivityCount.mul(1000000).div(totalActivityCount);
-
         uint256 mintAmount = currentMintableTokens.mul(activityShare).div(1000000);
         currentMintedTokens = currentMintedTokens.add(mintAmount);
 

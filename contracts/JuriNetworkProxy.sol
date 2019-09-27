@@ -93,9 +93,10 @@ contract JuriNetworkProxy is Ownable {
 
     JuriBonding public bonding;
     IERC20 public juriFeesToken;
-    SkaleMessageProxyInterface public skaleMessageProxy;
+    SkaleMessageProxyInterface public skaleMessageProxySide;
+    address public skaleMessageProxyAddressMain;
     SkaleFileStorageInterface public skaleFileStorage;
-    address public juriTokenAddress;
+    address public juriTokenMainAddress;
 
     Stages public currentStage;
     uint256 public roundIndex;
@@ -113,8 +114,10 @@ contract JuriNetworkProxy is Ownable {
 
     constructor(
         IERC20 _juriFeesToken,
-        IERC20 _juriToken,
-        SkaleMessageProxyInterface _skaleMessageProxy,
+        IERC20 _juriTokenSide,
+        IERC20 _juriTokenMain,
+        SkaleMessageProxyInterface _skaleMessageProxySide,
+        address _skaleMessageProxyAddressMain,
         SkaleFileStorageInterface _skaleFileStorage,
         address _juriFoundation,
         uint256[] memory _times,
@@ -131,7 +134,7 @@ contract JuriNetworkProxy is Ownable {
 
         bonding = new JuriBonding(
             this,
-            _juriToken,
+            _juriTokenSide,
             _juriFoundation,
             _minStakePerNode,
             _penalties[0],
@@ -141,9 +144,10 @@ contract JuriNetworkProxy is Ownable {
         );
         isRegisteredJuriStakingPool[address(bonding)] = true;
 
-        skaleMessageProxy = _skaleMessageProxy;
+        skaleMessageProxySide = _skaleMessageProxySide;
+        skaleMessageProxyAddressMain = _skaleMessageProxyAddressMain;
         skaleFileStorage = _skaleFileStorage;
-        juriTokenAddress = address(_juriToken);
+        juriTokenMainAddress = address(_juriTokenMain);
         juriFeesToken = _juriFeesToken;
         currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
         roundIndex = 0;
@@ -210,11 +214,11 @@ contract JuriNetworkProxy is Ownable {
         lastStageUpdate = now;
     }
 
-    // TODO What if not called in time?
-    function moveToNextRound(uint256 nodesCount)
+    function debugMoveToNextRound()
         public
+        view
         atStage(Stages.SLASHING_PERIOD)
-        checkIfNextStage {
+        returns (bytes memory) {
         uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
         uint32 totalActivity
             = stateForRound[roundIndex].totalActivityCount;
@@ -244,11 +248,47 @@ contract JuriNetworkProxy is Ownable {
             nodesActivity
         );
 
-        skaleMessageProxy.postOutgoingMessage(
+        return data;
+    }
+
+    // TODO What if not called in time?
+    function moveToNextRound()
+        public
+        atStage(Stages.SLASHING_PERIOD) {
+        uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
+        uint32 totalActivity
+            = stateForRound[roundIndex].totalActivityCount;
+        uint256 totalBonded = bonding.totalBonded();
+
+        uint256 totalNodesCount = bonding.stakingNodesAddressCount(roundIndex);
+        uint256 updateNodesCount = totalNodesCount > MAX_NODES_PER_UPDATE
+            ? MAX_NODES_PER_UPDATE
+            : totalNodesCount;
+
+        address[] memory nodesToUpdate
+            = bonding.receiveNodesAtIndex(nodesUpdateIndex, MAX_NODES_PER_UPDATE);
+        uint32[] memory nodesActivity = new uint32[](updateNodesCount);
+        
+        for (uint256 i = 0; i < updateNodesCount; i++) {
+            nodesActivity[i]
+                = _getCurrentStateForNode(nodesToUpdate[i]).activityCount;
+        }
+
+        bool isFirstAddition = nodesUpdateIndex == 0;
+
+        bytes memory data = _encodeIMABytes(
+            isFirstAddition,
+            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
+            isFirstAddition ? bonding.totalBonded() : 0,
+            nodesToUpdate,
+            nodesActivity
+        );
+
+        skaleMessageProxySide.postOutgoingMessage(
             'Mainnet', 
-            juriTokenAddress, // TODO
-            0, // amount ?
-            address(0), // to ? 
+            skaleMessageProxyAddressMain, // dstContract
+            0, // amount
+            juriTokenMainAddress, // to
             data
             // bytes calldata bls
         );
