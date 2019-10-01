@@ -25,5 +25,7 @@ module.exports = deployer => {
         skaleMessageProxyMain: skaleMessageProxyMain,
       })
     )
+
+    return deployer
   })
 }

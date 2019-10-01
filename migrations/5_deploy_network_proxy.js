@@ -1,23 +1,23 @@
 const BN = require('bn.js')
+const clearModule = require('clear-module')
 
 const { users } = require('../config/accounts')
 
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
-const JuriNetworkProxy = artifacts.require('./JuriNetworkProxy.sol')
+const JuriNetworkProxyMock = artifacts.require('./JuriNetworkProxyMock.sol')
 const JuriStakingPoolWithOracleMock = artifacts.require(
   'JuriStakingPoolWithOracleMock'
 )
 const MaxHeapLibrary = artifacts.require('./MaxHeapLibrary.sol')
-
-const {
-  juriTokenMain,
-  juriTokenSide,
-  skaleMessageProxyMain,
-} = require('./data/deployed')
+const SkaleMessageProxySideMock = artifacts.require(
+  './SkaleMessageProxySideMock.sol'
+)
 
 const {
   message_proxy_for_schain_address,
 } = require('../contracts/lib/skale/rinkeby_ABIs.json')
+
+const sleep = require('util').promisify(setTimeout)
 
 // const ONE_HOUR = 60 * 60
 // const ONE_WEEK = ONE_HOUR * 24 * 7
@@ -27,28 +27,58 @@ const FIFTEEN_MINUTES = 15 * 60
 
 const toEther = number => number.mul(new BN(10).pow(new BN(18)))
 
-module.exports = deployer => {
+module.exports = (deployer, network) => {
   deployer.then(async () => {
     await deployer.deploy(MaxHeapLibrary)
-    await deployer.link(MaxHeapLibrary, [JuriNetworkProxy])
+    await deployer.link(MaxHeapLibrary, [JuriNetworkProxyMock])
 
-    /* const skaleFileStorage = await deployer.deploy(
-      artifacts.require('./SkaleFileStorageMock.sol')
-    ) */
-    const skaleFileStorage = '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
+    const skaleFileStorageAddress =
+      network === 'development'
+        ? (await deployer.deploy(
+            artifacts.require('./SkaleFileStorageMock.sol')
+          )).address
+        : '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
 
     const juriFeesToken = await deployer.deploy(ERC20Mintable)
     const juriFoundation = '0x15ae150d7dc03d3b635ee90b85219dbfe071ed35'
     const oneEther = '1000000000000000000'
 
+    const deployedFileName = './data/deployed.json'
+
+    let {
+      juriTokenMain,
+      juriTokenSide,
+      skaleMessageProxyMain,
+    } = require(deployedFileName)
+
+    console.log({
+      juriTokenMain,
+      juriTokenSide,
+      skaleMessageProxyMain,
+    })
+
+    while (juriTokenSide === '- waiting for deployment -') {
+      await sleep(2000)
+
+      clearModule(deployedFileName)
+      const deployed = require(deployedFileName)
+
+      juriTokenSide = deployed.juriTokenSide
+    }
+
+    const skaleMessageProxySide =
+      network === 'development'
+        ? (await deployer.deploy(SkaleMessageProxySideMock)).address
+        : message_proxy_for_schain_address
+
     const networkProxy = await deployer.deploy(
-      JuriNetworkProxy,
+      JuriNetworkProxyMock,
       juriFeesToken.address,
       juriTokenSide,
       juriTokenMain,
-      message_proxy_for_schain_address,
+      skaleMessageProxySide,
       skaleMessageProxyMain,
-      skaleFileStorage, // skaleFileStorage.address,
+      skaleFileStorageAddress,
       juriFoundation,
       [
         FIFTEEN_MINUTES, // ONE_WEEK,
@@ -122,5 +152,7 @@ module.exports = deployer => {
       stakingAddress1: stakingContract1.address,
       stakingAddress2: stakingContract2.address,
     })
+
+    return deployer
   })
 }

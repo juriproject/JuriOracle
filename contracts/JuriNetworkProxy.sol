@@ -77,13 +77,20 @@ contract JuriNetworkProxy is Ownable {
     modifier checkIfNextStage() {
         uint256 timeForStage = timesForStages[uint256(currentStage)];
 
-        if (currentStage == Stages.SLASHING_PERIOD) {
+        if (currentStage == Stages.USER_ADDING_HEART_RATE_DATA) {
             uint256 secondsSinceStart = now.sub(startTime);
             uint256 secondsSinceStartNextPeriod = roundIndex.mul(timeForStage);
 
             if (secondsSinceStart >= secondsSinceStartNextPeriod) {
                 _moveToNextStage();
             }
+        } else if (currentStage == Stages.SLASHING_PERIOD) {
+            // cannot automatically move to next stage as we need the correct
+            // update logic for all nodes via postOutgoingMessage
+            require(
+                now >= lastStageUpdate.add(timeForStage),
+                'You cannot move to the next round before slashing period is finished!'
+            );
         } else if (now >= lastStageUpdate.add(timeForStage)) {
             _moveToNextStage();
         }
@@ -157,7 +164,6 @@ contract JuriNetworkProxy is Ownable {
     }
 
     // PUBLIC METHODS
-
     function registerJuriStakingPool(address _poolAddress) public onlyOwner {
         isRegisteredJuriStakingPool[_poolAddress] = true;
         registeredJuriStakingPools.push(_poolAddress);
@@ -177,78 +183,6 @@ contract JuriNetworkProxy is Ownable {
         registeredJuriStakingPools[_removalIndex]
             = registeredJuriStakingPools[registeredJuriStakingPools.length.sub(1)];
         registeredJuriStakingPools.length--;
-    }
-
-    // TODO remove
-    function debugIncreaseRoundIndex() public onlyOwner {
-        roundIndex++;
-
-        bonding.moveToNextRound(roundIndex);
-
-        dissentedUsers = new address[](0);
-        // nodeVerifierCount = bonding.totalNodesCount(roundIndex).div(3); // TODO
-    
-        // maybe also count only active nodes
-        // https://juriproject.slack.com/archives/CHKB3D1GF/p1565926038000200
-        nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
-        currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
-    }
-
-    // TODO remove
-    function moveToNextStage() public {
-        currentStage = Stages((uint256(currentStage) + 1) % 7);
-        lastStageUpdate = now;
-
-        if (currentStage == Stages.USER_ADDING_HEART_RATE_DATA) {
-            roundIndex++;
-
-            bonding.moveToNextRound(roundIndex);
-            dissentedUsers = new address[](0);
-            nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
-        }
-    }
-
-    // TODO remove
-    function moveToUserAddingHeartRateDataStage() public {
-        currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
-        lastStageUpdate = now;
-    }
-
-    function debugMoveToNextRound()
-        public
-        view
-        atStage(Stages.SLASHING_PERIOD)
-        returns (bytes memory) {
-        uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
-        uint32 totalActivity
-            = stateForRound[roundIndex].totalActivityCount;
-        uint256 totalBonded = bonding.totalBonded();
-
-        uint256 totalNodesCount = bonding.stakingNodesAddressCount(roundIndex);
-        uint256 updateNodesCount = totalNodesCount > MAX_NODES_PER_UPDATE
-            ? MAX_NODES_PER_UPDATE
-            : totalNodesCount;
-
-        address[] memory nodesToUpdate
-            = bonding.receiveNodesAtIndex(nodesUpdateIndex, MAX_NODES_PER_UPDATE);
-        uint32[] memory nodesActivity = new uint32[](updateNodesCount);
-        
-        for (uint256 i = 0; i < updateNodesCount; i++) {
-            nodesActivity[i]
-                = _getCurrentStateForNode(nodesToUpdate[i]).activityCount;
-        }
-
-        bool isFirstAddition = nodesUpdateIndex == 0;
-
-        bytes memory data = _encodeIMABytes(
-            isFirstAddition,
-            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
-            isFirstAddition ? bonding.totalBonded() : 0,
-            nodesToUpdate,
-            nodesActivity
-        );
-
-        return data;
     }
 
     // TODO What if not called in time?
@@ -298,6 +232,8 @@ contract JuriNetworkProxy is Ownable {
 
         if (stateForRound[roundIndex].nodesUpdateIndex >= totalNodesCount) {
             roundIndex++;
+            currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
+
             bonding.moveToNextRound(roundIndex);
             dissentedUsers = new address[](0);
             // nodeVerifierCount = bonding.totalNodesCount(roundIndex).div(3);

@@ -1,209 +1,113 @@
 pragma solidity 0.5.10;
 
-import "./lib/IERC20.sol";
-import "./lib/SafeMath.sol";
-
-import "./lib/custom/MaxHeapLibrary.sol";
-import "./JuriBonding.sol";
 import "./JuriNetworkProxy.sol";
 
-contract JuriNetworkProxyMock {
-    using SafeMath for uint256;
-    using MaxHeapLibrary for MaxHeapLibrary.heapStruct;
-
-    event RemovedMax(address user, address removedNode);
-    event AddedVerifierHash(address user, address node, bytes32 verifierHash);
-
-    event OLD_MAX(bytes32 maxVerifierHash);
-    event NEW_MAX(bytes32 maxVerifierHash);
-
-    enum Stages {
-        USER_ADDING_HEART_RATE_DATA,
-        NODES_ADDING_RESULT_COMMITMENTS,
-        NODES_ADDING_RESULT_REVEALS,
-        DISSENTING_PERIOD,
-        DISSENTS_NODES_ADDING_RESULT_COMMITMENTS,
-        DISSENTS_NODES_ADDING_RESULT_REVEALS,
-        SLASHING_PERIOD
-    }
-
-    struct UserState {
-        MaxHeapLibrary.heapStruct verifierHashesMaxHeap;
-        int256 complianceDataBeforeDissent;
-        int256 userComplianceData;
-        bytes32 userWorkoutSignature;
-        string userHeartRateDataStoragePath;
-        bool dissented;
-    }
-
-    struct NodeForUserState {
-        bool hasRevealed;
-        bytes32 complianceDataCommitment;
-        bool givenNodeResult;
-        bool hasDissented;
-        bool wasAssignedToUser;
-    }
-
-    struct NodeState {
-        mapping (address => NodeForUserState) nodeForUserStates;
-        bool hasRetrievedRewards;
-        uint256 activityCount;
-    }
-
-    struct JuriRound {
-        mapping (address => UserState) userStates;
-        mapping (address => NodeState) nodeStates;
-        uint256 totalActivityCount;
-    }
-
-    JuriBonding public bonding;
-    IERC20 public juriFeesToken;
-    SkaleFileStorageInterface public skaleFileStorage;
-
-    Stages public currentStage;
-    uint256 public roundIndex;
-    uint256 public startTime;
-    uint256 public lastStageUpdate;
-    uint256 public totalJuriFees;
-    uint256 public nodeVerifierCount;
-    address[] public dissentedUsers;
-
-    mapping (uint256 => uint256) public timesForStages;
-    mapping (address => bool) public isRegisteredJuriStakingPool;
-    mapping (uint256 => JuriRound) private stateForRound;
-
+contract JuriNetworkProxyMock is JuriNetworkProxy {
     constructor(
         IERC20 _juriFeesToken,
-        IERC20 _juriToken,
+        IERC20 _juriTokenSide,
+        IERC20 _juriTokenMain,
+        SkaleMessageProxyInterface _skaleMessageProxySide,
+        address _skaleMessageProxyAddressMain,
+        SkaleFileStorageInterface _skaleFileStorage,
         address _juriFoundation,
-        uint256 _minStakePerNode,
-        uint256 _offlinePenalty,
-        uint256 _notRevealPenalty,
-        uint256 _incorrectResultPenalty,
-        uint256 _incorrectDissentPenalty
-    ) public {
-        bonding = new JuriBonding(
-            JuriNetworkProxy(address(this)),
-            _juriToken,
-            _juriFoundation,
-            _minStakePerNode,
-            _offlinePenalty,
-            _notRevealPenalty,
-            _incorrectResultPenalty,
-            _incorrectDissentPenalty
-        );
-
-        juriFeesToken = _juriFeesToken;
-        currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
-        roundIndex = 0;
-        startTime = now;
-        lastStageUpdate = now;
-        totalJuriFees = 0;
-        nodeVerifierCount = 1;
-    }
+        uint256[] memory _times,
+        uint256[] memory _penalties,
+        uint256 _minStakePerNode
+    ) JuriNetworkProxy(
+        _juriFeesToken,
+        _juriTokenSide,
+        _juriTokenMain,
+        _skaleMessageProxySide,
+        _skaleMessageProxyAddressMain,
+        _skaleFileStorage,
+        _juriFoundation,
+        _times,
+        _penalties,
+        _minStakePerNode
+    ) public { }
 
     function moveToNextStage() public {
-        currentStage = Stages((uint256(currentStage) + 1) % 7);
-    }
+        lastStageUpdate = now;
 
-    function incrementRoundIndex() public {
-        roundIndex++;
-
-        bonding.moveToNextRound(roundIndex);
-    }
-
-    function increaseNodeActivity(address _node) public {
-        stateForRound[roundIndex].nodeStates[_node].activityCount++;
-        stateForRound[roundIndex].totalActivityCount++;
-    }
-
-    function addComplianceDataForUsers(
-        address[] memory _users,
-        int256[] memory _complianceData
-    ) public {
-        for (uint256 i = 0; i < _users.length; i++) {
-            stateForRound[roundIndex].userStates[_users[i]].userComplianceData
-                = _complianceData[i];
+        if (currentStage == Stages.DISSENTING_PERIOD) {
+            currentStage = dissentedUsers.length > 0
+                ? Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS
+                : Stages.SLASHING_PERIOD;
+        } else {
+            currentStage = Stages((uint256(currentStage) + 1) % 7);
         }
     }
 
-    function getUserWorkAssignmentHashes(uint256 _roundIndex, address _user)
+    function moveToUserAddingHeartRateDataStage() public {
+        currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
+        lastStageUpdate = now;
+    }
+
+    function moveToAddingCommitmentStage() public {
+        currentStage = Stages.NODES_ADDING_RESULT_COMMITMENTS;
+        lastStageUpdate = now;
+    }
+
+    function addHeartRateDateForPoolUser(
+        bytes32 _userWorkoutSignature,
+        string memory _heartRateDataStoragePath
+    ) public atStage(Stages.USER_ADDING_HEART_RATE_DATA) {
+        stateForRound[roundIndex]
+            .userStates[msg.sender]
+            .userWorkoutSignature = _userWorkoutSignature;
+        stateForRound[roundIndex]
+            .userStates[msg.sender]
+            .userHeartRateDataStoragePath = _heartRateDataStoragePath;
+    }
+
+    function debugMoveToNextRound()
         public
         view
-        returns (uint256[] memory) {
-        return stateForRound[_roundIndex].userStates[_user].verifierHashesMaxHeap.getLowestHashes();
+        atStage(Stages.SLASHING_PERIOD)
+        returns (bytes memory) {
+        uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
+        uint32 totalActivity
+            = stateForRound[roundIndex].totalActivityCount;
+        uint256 totalBonded = bonding.totalBonded();
+
+        uint256 totalNodesCount = bonding.stakingNodesAddressCount(roundIndex);
+        uint256 updateNodesCount = totalNodesCount > MAX_NODES_PER_UPDATE
+            ? MAX_NODES_PER_UPDATE
+            : totalNodesCount;
+
+        address[] memory nodesToUpdate
+            = bonding.receiveNodesAtIndex(nodesUpdateIndex, MAX_NODES_PER_UPDATE);
+        uint32[] memory nodesActivity = new uint32[](updateNodesCount);
+        
+        for (uint256 i = 0; i < updateNodesCount; i++) {
+            nodesActivity[i]
+                = _getCurrentStateForNode(nodesToUpdate[i]).activityCount;
+        }
+
+        bool isFirstAddition = nodesUpdateIndex == 0;
+
+        bytes memory data = _encodeIMABytes(
+            isFirstAddition,
+            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
+            isFirstAddition ? bonding.totalBonded() : 0,
+            nodesToUpdate,
+            nodesActivity
+        );
+
+        return data;
     }
 
-    function getDissented(uint256 _roundIndex, address _user)
-        public
-        view
-        returns (bool) {
-        return stateForRound[_roundIndex].userStates[_user].dissented;
+    function debugIncreaseRoundIndex() public onlyOwner {
+        roundIndex++;
+        bonding.moveToNextRound(roundIndex);
+        dissentedUsers = new address[](0);
+        nodeVerifierCount = bonding.stakingNodesAddressCount(roundIndex).div(3);
+        currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
     }
 
-    function getComplianceDataBeforeDissent(uint256 _roundIndex, address _user)
-        public
-        view
-        returns (int256) {
-        return stateForRound[_roundIndex].userStates[_user].complianceDataBeforeDissent;
-    }
-
-    function getHasRevealed(uint256 _roundIndex, address _node, address _user)
-        public
-        view
-        returns (bool) {
-        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].hasRevealed;
-    }
-
-    function getNodeActivityCount(uint256 _roundIndex, address _node)
-        public
-        view
-        returns (uint256) {
-        return stateForRound[_roundIndex].nodeStates[_node].activityCount;
-    }
-
-    function getTotalActivityCount(uint256 _roundIndex)
-        public
-        view
-        returns (uint256) {
-        return stateForRound[_roundIndex].totalActivityCount;
-    }
-
-    function getUserComplianceDataCommitment(
-        uint256 _roundIndex,
-        address _node,
-        address _user
-    ) public view returns (bytes32) {
-        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].complianceDataCommitment;
-    }
-
-    function getGivenNodeResult(
-        uint256 _roundIndex,
-        address _node,
-        address _user
-    ) public view returns (bool) {
-        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].givenNodeResult;
-    }
-
-    function getWasAssignedToUser(
-        uint256 _roundIndex,
-        address _node,
-        address _user
-    ) public view returns (bool) {
-        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].wasAssignedToUser;
-    }
-
-    function getHasDissented(uint256 _roundIndex, address _node, address _user)
-        public
-        view
-        returns (bool) {
-        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].hasDissented;
-    }
-
-    function getUserComplianceData(uint256 _roundIndex, address _user)
-        public
-        view
-        returns (int256) {
-        return stateForRound[_roundIndex].userStates[_user].userComplianceData;
+    function moveTimeToNextStage() public {
+        uint256 timeForStage = timesForStages[uint256(currentStage)];
+        lastStageUpdate = now.sub(timeForStage);
     }
 }
