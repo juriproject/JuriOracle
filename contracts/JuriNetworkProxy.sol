@@ -267,7 +267,6 @@ contract JuriNetworkProxy is Ownable {
         string memory _heartRateDataStoragePath
     ) public checkIfNextStage atStage(Stages.USER_ADDING_HEART_RATE_DATA) {
         // TODO verify signature, HOW ?
-
         // TODO optional: enforce storage path fits msg.sender
 
         uint8 fileStatus
@@ -779,7 +778,10 @@ contract JuriNetworkProxy is Ownable {
                 !nodeForUserState.hasRevealed,
                 "You already added the complianceData!"
             );
-            stateForRound[roundIndex].nodeStates[msg.sender].nodeForUserStates[user].hasRevealed = true;
+            stateForRound[roundIndex]
+                .nodeStates[msg.sender]
+                .nodeForUserStates[user]
+                .hasRevealed = true;
     
             require(
                 verifierNonceHash == commitment,

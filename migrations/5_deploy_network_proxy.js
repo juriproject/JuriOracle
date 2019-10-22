@@ -19,11 +19,11 @@ const {
 
 const sleep = require('util').promisify(setTimeout)
 
-// const ONE_HOUR = 60 * 60
-// const ONE_WEEK = ONE_HOUR * 24 * 7
+const ONE_HOUR = 60 * 60
+const ONE_WEEK = ONE_HOUR * 24 * 7
 
-const TWO_MINUTES = 2 * 60
-const FIFTEEN_MINUTES = 15 * 60
+// const TWO_MINUTES = 2 * 60
+// const FIFTEEN_MINUTES = 15 * 60
 
 const toEther = number => number.mul(new BN(10).pow(new BN(18)))
 
@@ -80,15 +80,7 @@ module.exports = (deployer, network) => {
       skaleMessageProxyMain,
       skaleFileStorageAddress,
       juriFoundation,
-      [
-        FIFTEEN_MINUTES, // ONE_WEEK,
-        TWO_MINUTES,
-        TWO_MINUTES,
-        TWO_MINUTES,
-        TWO_MINUTES,
-        TWO_MINUTES,
-        TWO_MINUTES,
-      ],
+      [ONE_WEEK, ONE_HOUR, ONE_HOUR, ONE_HOUR, ONE_HOUR, ONE_HOUR, ONE_HOUR],
       [10, 20, 30, 40],
       oneEther
     )
