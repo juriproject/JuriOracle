@@ -1,5 +1,6 @@
 const BN = require('bn.js')
 const clearModule = require('clear-module')
+const fs = require('fs')
 
 const { users } = require('../config/accounts')
 
@@ -16,6 +17,8 @@ const SkaleMessageProxySideMock = artifacts.require(
 const {
   message_proxy_for_schain_address,
 } = require('../contracts/lib/skale/rinkeby_ABIs.json')
+
+const fs_writeFile = require('util').promisify(fs.writeFile)
 
 const sleep = require('util').promisify(setTimeout)
 
@@ -139,11 +142,13 @@ module.exports = (deployer, network) => {
     await networkProxy.registerJuriStakingPool(stakingContract1.address)
     await networkProxy.registerJuriStakingPool(stakingContract2.address)
 
-    console.log({
-      networkProxyAddress: networkProxy.address,
-      stakingAddress1: stakingContract1.address,
-      stakingAddress2: stakingContract2.address,
-    })
+    await fs_writeFile(
+      __dirname + '\\data\\deployed.json',
+      JSON.stringify({
+        ...require('./data/deployed'),
+        networkProxyAddress: networkProxy.address,
+      })
+    )
 
     return deployer
   })
