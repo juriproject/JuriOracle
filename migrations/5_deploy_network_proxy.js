@@ -67,7 +67,7 @@ module.exports = (deployer, network) => {
     }
 
     const skaleMessageProxySide =
-      network === 'development'
+      network !== 'skaleSide'
         ? (await deployer.deploy(SkaleMessageProxySideMock)).address
         : message_proxy_for_schain_address
 
