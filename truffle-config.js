@@ -7,7 +7,7 @@ const DEFAULT_MNEMONIC =
 // 0x350c1088a07AfFCe586695A6a4500F261e68c350
 const GAS_LIMIT = 6.5e6
 
-const awsControllerUrl = require('../JuriNodeApp/management/awsControllerUrl')
+const awsControllerUrl = require('../JuriNodeApp/config/awsControllerUrl')
 
 function truffleConfig({
   mnemonic = DEFAULT_MNEMONIC,

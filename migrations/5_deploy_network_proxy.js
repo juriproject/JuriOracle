@@ -146,8 +146,13 @@ module.exports = (deployer, network) => {
       __dirname + '\\data\\deployed.json',
       JSON.stringify({
         ...require('./data/deployed'),
-        networkProxyAddress: networkProxy.address,
       })
+    )
+
+    await fs_writeFile(
+      __dirname +
+        '..\\..\\..\\JuriNodeApp\\config\\lastDeployedNetworkProxyAddress.json',
+      JSON.stringify({ networkProxyAddress: networkProxy.address })
     )
 
     return deployer
