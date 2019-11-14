@@ -89,8 +89,8 @@ contract JuriNetworkProxyMock is JuriNetworkProxy {
 
         bytes memory data = _encodeIMABytes(
             isFirstAddition,
-            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
-            isFirstAddition ? bonding.totalBonded() : 0,
+            isFirstAddition ? totalActivity : 0,
+            isFirstAddition ? totalBonded : 0,
             nodesToUpdate,
             nodesActivity
         );

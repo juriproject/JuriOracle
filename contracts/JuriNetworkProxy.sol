@@ -19,7 +19,7 @@ contract JuriNetworkProxy is Ownable {
     event OLD_MAX(bytes32 maxVerifierHash);
     event NEW_MAX(bytes32 maxVerifierHash);
 
-    uint256 constant MAX_NODES_PER_UPDATE = 2; // TODO
+    uint256 constant MAX_NODES_PER_UPDATE = 10; // TODO
 
     enum Stages {
         USER_ADDING_HEART_RATE_DATA,
@@ -42,6 +42,7 @@ contract JuriNetworkProxy is Ownable {
 
     struct NodeForUserState {
         bytes32 complianceDataCommitment;
+        uint256 proofIndicesCount;
         bool hasRevealed;
         bool givenNodeResult;
         bool hasDissented;
@@ -50,7 +51,6 @@ contract JuriNetworkProxy is Ownable {
 
     struct NodeState {
         mapping (address => NodeForUserState) nodeForUserStates;
-        bool hasRetrievedRewards;
         uint32 activityCount;
     }
 
@@ -110,8 +110,8 @@ contract JuriNetworkProxy is Ownable {
     uint256 public startTime;
     uint256 public lastStageUpdate;
     uint256 public nodeVerifierCount;
-    address[] public registeredJuriStakingPools;
-    address[] public dissentedUsers;
+    address[] public registeredJuriStakingPools; // no out-of-gas because array only read in view function
+    address[] public dissentedUsers; // no out-of-gas because array only read in view function
 
     mapping (uint256 => mapping (address => uint256)) public totalJuriFeesAtWithdrawalTimes;
     mapping (uint256 => uint256) public totalJuriFees;
@@ -212,8 +212,8 @@ contract JuriNetworkProxy is Ownable {
 
         bytes memory data = _encodeIMABytes(
             isFirstAddition,
-            isFirstAddition ? uint32(stateForRound[roundIndex].totalActivityCount) : 0,
-            isFirstAddition ? bonding.totalBonded() : 0,
+            isFirstAddition ? totalActivity : 0,
+            isFirstAddition ? totalBonded : 0,
             nodesToUpdate,
             nodesActivity
         );
@@ -287,12 +287,36 @@ contract JuriNetworkProxy is Ownable {
     function addWasCompliantDataCommitmentsForUsers(
         address[] memory _users,
         bytes32[] memory _wasCompliantDataCommitments,
-        uint256[] memory _proofIndices
+        uint256[] memory _flatProofIndices,
+        uint256[] memory _proofIndicesCutoffs
     ) public checkIfNextStage atStage(Stages.NODES_ADDING_RESULT_COMMITMENTS) {
+        uint256[][] memory proofIndices = new uint256[][](_proofIndicesCutoffs.length + 1);
+        uint256 lastCutoffIndex = 0;
+
+        for (uint256 i = 0; i < proofIndices.length - 1; i++) {
+            proofIndices[i] = new uint256[](
+                _proofIndicesCutoffs[i] - (lastCutoffIndex)
+            );
+
+            for (uint256 j = 0; j < proofIndices[i].length; j++) {
+                proofIndices[i][j] = _flatProofIndices[lastCutoffIndex + j];
+            }
+
+            lastCutoffIndex = _proofIndicesCutoffs[i];
+        }
+        
+        proofIndices[proofIndices.length - 1] = new uint256[](
+            _flatProofIndices.length - lastCutoffIndex
+        );
+
+        for (uint256 j = 0; j < proofIndices[proofIndices.length - 1].length; j++) {
+            proofIndices[proofIndices.length - 1][j] = _flatProofIndices[lastCutoffIndex + j];
+        }
+
         _addWasCompliantDataCommitmentsForUsers(
             _users,
             _wasCompliantDataCommitments,
-            _proofIndices
+            proofIndices
         );
     }
 
@@ -303,7 +327,7 @@ contract JuriNetworkProxy is Ownable {
     ) public
         checkIfNextStage
         atStage(Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS) {
-        uint256[] memory _proofIndices = new uint256[](0);
+        uint256[][] memory _proofIndices = new uint256[][](0);
 
         _addWasCompliantDataCommitmentsForUsers(
             _users,
@@ -317,10 +341,13 @@ contract JuriNetworkProxy is Ownable {
         bool[] memory _wasCompliantData,
         bytes32[] memory _randomNonces
     ) public checkIfNextStage atStage(Stages.NODES_ADDING_RESULT_REVEALS) {
+        bool isVotingStakeBased = false;
+
         _addWasCompliantDataForUsers(
             _users,
             _wasCompliantData,
-            _randomNonces
+            _randomNonces,
+            isVotingStakeBased
         );
     }
 
@@ -331,10 +358,13 @@ contract JuriNetworkProxy is Ownable {
     ) public
         checkIfNextStage
         atStage(Stages.DISSENTS_NODES_ADDING_RESULT_REVEALS) {
+        bool isVotingStakeBased = true;
+
         _addWasCompliantDataForUsers(
             _users,
             _wasCompliantData,
-            _randomNonces
+            _randomNonces,
+            isVotingStakeBased
         );
     }
 
@@ -416,7 +446,6 @@ contract JuriNetworkProxy is Ownable {
             .div(multiplier);
 
         totalJuriFeesAtWithdrawalTimes[_roundIndex][msg.sender] = totalJuriFeesForRound;
-        stateForRound[_roundIndex].nodeStates[node].hasRetrievedRewards = true;
         juriFeesToken.transfer(node, juriFeesTokenAmount);
     }
 
@@ -508,6 +537,14 @@ contract JuriNetworkProxy is Ownable {
         return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].wasAssignedToUser;
     }
 
+    function getProofIndicesCount(
+        uint256 _roundIndex,
+        address _node,
+        address _user
+    ) public view returns (uint256) {
+        return stateForRound[_roundIndex].nodeStates[_node].nodeForUserStates[_user].proofIndicesCount;
+    }
+
     function getHasDissented(uint256 _roundIndex, address _node, address _user)
         public
         view
@@ -569,14 +606,14 @@ contract JuriNetworkProxy is Ownable {
         return highestHash;
     }
 
-    /// PRIVATE METHODS
+    /// INTERNAL METHODS
     function _encodeIMABytes(
         bool _isFirstAddition,
         uint32 _totalActivity,
         uint256 _totalBonded,
         address[] memory _nodes,
         uint32[] memory _nodeActivities
-    ) public pure returns (bytes memory) {
+    ) internal pure returns (bytes memory) {
         uint8 isFirstAddition = _isFirstAddition ? 1 : 0;
         uint256 firstAdditionAddedDataLength = 37;
         uint256 nodesCount = _nodes.length;
@@ -653,25 +690,30 @@ contract JuriNetworkProxy is Ownable {
         return result;
     }
 
-    function _increaseActivityCountForNode(
-        address _node,
-        uint32 _activityCount
-    ) internal {
-        stateForRound[roundIndex]
-            .nodeStates[_node]
-            .activityCount = _getCurrentStateForNode(_node)
-                .activityCount + _activityCount;
+    function _incrementActivityCountForNode(NodeState storage _nodeState) internal {
+        _nodeState.activityCount = _nodeState.activityCount + 1;
         stateForRound[roundIndex].totalActivityCount
-            = stateForRound[roundIndex].totalActivityCount + _activityCount;
+            = stateForRound[roundIndex].totalActivityCount + 1;
     }
 
-    function _decrementActivityCountForNode(address _node) internal {
-        stateForRound[roundIndex]
-            .nodeStates[_node]
-            .activityCount
-                = _getCurrentStateForNode(_node).activityCount - 1;
-        stateForRound[roundIndex].totalActivityCount
-            = stateForRound[roundIndex].totalActivityCount - 1;
+    function _decrementActivityCountForNode(
+        NodeState storage _nodeState
+    ) internal {
+        uint32 oldActivityCount = _nodeState.activityCount;
+        uint32 oldTotalActivityCount = stateForRound[roundIndex].totalActivityCount;
+
+        _nodeState.activityCount = oldActivityCount - 1;
+        stateForRound[roundIndex].totalActivityCount = oldTotalActivityCount - 1;
+
+        require(
+            _nodeState.activityCount < oldActivityCount,
+            'Sub underflow when decrementing activity count!'
+        );
+
+        require(
+            stateForRound[roundIndex].totalActivityCount < oldTotalActivityCount,
+            'Sub underflow when decrementing total activity count!'
+        );
     }
 
     function _moveToNextStage() internal {
@@ -689,7 +731,7 @@ contract JuriNetworkProxy is Ownable {
     function _addWasCompliantDataCommitmentsForUsers(
         address[] memory _users,
         bytes32[] memory _wasCompliantDataCommitments,
-        uint256[] memory _proofIndices
+        uint256[][] memory _proofIndices
     ) internal {
         address node = msg.sender;
 
@@ -703,49 +745,62 @@ contract JuriNetworkProxy is Ownable {
             'Users length should match proofIndices!'
         );
 
-        uint256 validUserCount = 0;
+        uint256 bondedStake = bonding.getBondedStakeOfNode(node);
 
         for (uint256 i = 0; i < _users.length; i++) {
             address user = _users[i];
             bytes32 wasCompliantCommitment = _wasCompliantDataCommitments[i];
 
-            NodeForUserState memory nodeForUserState
+            NodeForUserState storage nodeForUserState
                 = _getCurrentStateForNodeForUser(node, user);
             require(
-                !nodeForUserState.hasRevealed,
-                "You already added the complianceData!"
+                nodeForUserState.complianceDataCommitment == 0x0,
+                "You already added the complianceDataCommitment for that user!"
             );
 
-            if (_getCurrentStateForUser(user).dissented
-                || (_verifyValidComplianceAddition(user, node, _proofIndices[i])
-                && currentStage == Stages.NODES_ADDING_RESULT_COMMITMENTS)
-            ) {
-                validUserCount++;
-
-                if (nodeForUserState.complianceDataCommitment == 0x0) {
-                    stateForRound[roundIndex]
-                        .nodeStates[node]
-                        .nodeForUserStates[user]
-                        .complianceDataCommitment
-                            = wasCompliantCommitment;
-                }
-            }
+            _addValidUser(
+                user,
+                node,
+                wasCompliantCommitment,
+                _proofIndices[i],
+                bondedStake
+            );
         }
         
-        require(validUserCount > 0, 'No valid users to add!');
+        // TODO no valid users added -> revert
+    }
 
-        if (currentStage == Stages.NODES_ADDING_RESULT_COMMITMENTS) {
-            // dont count dissent rounds as activity
-            // because nodes have an incentive anyways to participate
-            // due to not getting offline slashed
-            _increaseActivityCountForNode(node, uint32(validUserCount));
+    function _assignProofIndexForNodeToUser(
+        NodeForUserState storage _nodeForUserState,
+        bytes32 _wasCompliantCommitment
+    ) internal {
+        _nodeForUserState.complianceDataCommitment = _wasCompliantCommitment;
+        _nodeForUserState.wasAssignedToUser = true;
+        _nodeForUserState.proofIndicesCount = _nodeForUserState.proofIndicesCount + 1;
+    }
+
+    function _removeOneUserFromNode(
+        NodeForUserState storage _nodeForUserState
+    ) internal {
+        require(
+            _nodeForUserState.proofIndicesCount > 0,
+            'Trying to remove node from user that is already empty!'
+        );
+
+        _nodeForUserState.proofIndicesCount
+            = _nodeForUserState.proofIndicesCount.sub(1);
+
+        if (_nodeForUserState.proofIndicesCount == 0) {
+            _nodeForUserState.wasAssignedToUser = false;
+            _nodeForUserState.complianceDataCommitment = 0x0;
         }
     }
 
     function _addWasCompliantDataForUsers(
         address[] memory _users,
         bool[] memory _wasCompliantData,
-        bytes32[] memory _randomNonces
+        bytes32[] memory _randomNonces,
+        bool _isVotingStakeBased
     ) internal {
         address node = msg.sender;
 
@@ -757,10 +812,13 @@ contract JuriNetworkProxy is Ownable {
             _users.length == _randomNonces.length,
             "The users length must match the randomNonces data length!"
         );
+        
+        uint256 bondedStake = bonding.getBondedStakeOfNode(node);
+        uint256 nodeStakeCount = bondedStake.div(1e18);
 
         for (uint256 i = 0; i < _users.length; i++) {
             address user = _users[i];
-            NodeForUserState memory nodeForUserState
+            NodeForUserState storage nodeForUserState
                 = _getCurrentStateForNodeForUser(node, user);
             bool wasCompliant = _wasCompliantData[i];
             bytes32 commitment = nodeForUserState.complianceDataCommitment;
@@ -778,25 +836,24 @@ contract JuriNetworkProxy is Ownable {
                 !nodeForUserState.hasRevealed,
                 "You already added the complianceData!"
             );
-            stateForRound[roundIndex]
-                .nodeStates[msg.sender]
-                .nodeForUserStates[user]
-                .hasRevealed = true;
+            nodeForUserState.hasRevealed = true;
     
             require(
                 verifierNonceHash == commitment,
                 "The passed random nonce does not match!"
             );
 
-            stateForRound[roundIndex]
-                .nodeStates[node]
-                .nodeForUserStates[user]
-                .givenNodeResult = wasCompliant;
-    
+            nodeForUserState.givenNodeResult = wasCompliant;
+
             int256 currentCompliance = _getCurrentStateForUser(user)
                 .userComplianceData;
+            int256 complianceDataChange = _isVotingStakeBased
+                ? int256(nodeStakeCount)
+                : int256(nodeForUserState.proofIndicesCount);
             stateForRound[roundIndex].userStates[user].userComplianceData
-                = wasCompliant ? currentCompliance + 1 : currentCompliance - 1;
+                = wasCompliant ?
+                    currentCompliance + complianceDataChange
+                    : currentCompliance - complianceDataChange;
         }
     }
 
@@ -828,48 +885,56 @@ contract JuriNetworkProxy is Ownable {
         return stateForRound[roundIndex].nodeStates[_node].nodeForUserStates[_user];
     }
 
-    function _verifyValidComplianceAddition(
+    function _addValidUser(
         address _user,
         address _node,
-        uint256 _proofIndex
-    ) internal returns (bool) {
+        bytes32 _wasCompliantCommitment,
+        uint256[] memory _proofIndices,
+        uint256 _bondedStake
+    ) internal {
         UserState storage userState = _getCurrentStateForUser(_user);
+        NodeState storage nodeState = stateForRound[roundIndex]
+            .nodeStates[_node];
+        NodeForUserState storage nodeForUserState = nodeState
+            .nodeForUserStates[_user];
 
         uint256 currentHighestHash = _getCurrentHighestHashForUser(_user);
         bytes32 userWorkoutSignature = userState.userWorkoutSignature;
-        uint256 bondedStake = bonding.getBondedStakeOfNode(_node);
 
         require(
             userWorkoutSignature != 0x0,
             "The user did not add any heart rate data!"
         );
 
-        require(
-            _proofIndex < bondedStake.div(1e18),
-            "The proof index must be smaller than the bonded stake per 1e18!"
-        );
+        for (uint256 i = 0; i < _proofIndices.length; i++) {
+            uint256 proofIndex = _proofIndices[i];
+            require(
+                proofIndex < _bondedStake.div(1e18),
+                "The proof index must be smaller than the bonded stake per 1e18!"
+            );
 
-        uint256 verifierHash = uint256(
-            keccak256(abi.encodePacked(userWorkoutSignature, _node, _proofIndex))
-        );
+            uint256 verifierHash = uint256(
+                keccak256(abi.encodePacked(userWorkoutSignature, _node, proofIndex))
+            );
 
-        MaxHeapLibrary.heapStruct storage verifierHashesMaxHeap
-            = userState.verifierHashesMaxHeap;
+            MaxHeapLibrary.heapStruct storage verifierHashesMaxHeap
+                = userState.verifierHashesMaxHeap;
 
-        if (verifierHashesMaxHeap.getLength() < nodeVerifierCount // TODO count node quality ??
-            || verifierHash < currentHighestHash) {
+            if (verifierHashesMaxHeap.getLength() >= nodeVerifierCount // TODO count node quality ??
+                && verifierHash >= currentHighestHash) {
+                continue;
+            }
+
             _addNewVerifierHashForUser(_node, _user, verifierHash);
+            _incrementActivityCountForNode(nodeState);
+            _assignProofIndexForNodeToUser(nodeForUserState, _wasCompliantCommitment);
 
             if (verifierHashesMaxHeap.getLength() > nodeVerifierCount) {
                 emit OLD_MAX(bytes32(_getCurrentHighestHashForUser(_user)));
                 _removeMaxVerifierHashForUser(_user);
                 emit NEW_MAX(bytes32(_getCurrentHighestHashForUser(_user)));
             }
-
-            return true;
         }
-
-        return false;
     }
 
     function _getCurrentHighestHashForUser(address _user)
@@ -889,23 +954,19 @@ contract JuriNetworkProxy is Ownable {
 
     function _removeMaxVerifierHashForUser(
         address _user
-    ) internal {
+    ) internal returns (bool) {
         MaxHeapLibrary.heapStruct storage verifierHashesMaxHeap
             = _getCurrentStateForUser(_user).verifierHashesMaxHeap;
         address removedNode = verifierHashesMaxHeap.removeMax();
-
         emit RemovedMax(_user, removedNode);
+        
+        NodeState storage nodeState = stateForRound[roundIndex]
+            .nodeStates[removedNode];
+        NodeForUserState storage nodeForUserState = nodeState
+            .nodeForUserStates[_user];
 
-        stateForRound[roundIndex]
-            .nodeStates[removedNode]
-            .nodeForUserStates[_user]
-            .wasAssignedToUser = false;
-        stateForRound[roundIndex]
-            .nodeStates[removedNode]
-            .nodeForUserStates[_user]
-            .complianceDataCommitment = 0x0;
-
-        _decrementActivityCountForNode(removedNode);
+        _removeOneUserFromNode(nodeForUserState);
+        _decrementActivityCountForNode(nodeState);
     }
 
     function _addNewVerifierHashForUser(
@@ -918,10 +979,5 @@ contract JuriNetworkProxy is Ownable {
         verifierHashesMaxHeap.insert(_node, _verifierHash);
 
         emit AddedVerifierHash(_user, _node, bytes32(_verifierHash));
-
-        stateForRound[roundIndex]
-            .nodeStates[_node]
-            .nodeForUserStates[_user]
-            .wasAssignedToUser = true;
     }
 }
