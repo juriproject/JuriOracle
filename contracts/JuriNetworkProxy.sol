@@ -290,28 +290,10 @@ contract JuriNetworkProxy is Ownable {
         uint256[] memory _flatProofIndices,
         uint256[] memory _proofIndicesCutoffs
     ) public checkIfNextStage atStage(Stages.NODES_ADDING_RESULT_COMMITMENTS) {
-        uint256[][] memory proofIndices = new uint256[][](_proofIndicesCutoffs.length + 1);
-        uint256 lastCutoffIndex = 0;
-
-        for (uint256 i = 0; i < proofIndices.length - 1; i++) {
-            proofIndices[i] = new uint256[](
-                _proofIndicesCutoffs[i] - (lastCutoffIndex)
-            );
-
-            for (uint256 j = 0; j < proofIndices[i].length; j++) {
-                proofIndices[i][j] = _flatProofIndices[lastCutoffIndex + j];
-            }
-
-            lastCutoffIndex = _proofIndicesCutoffs[i];
-        }
-        
-        proofIndices[proofIndices.length - 1] = new uint256[](
-            _flatProofIndices.length - lastCutoffIndex
-        );
-
-        for (uint256 j = 0; j < proofIndices[proofIndices.length - 1].length; j++) {
-            proofIndices[proofIndices.length - 1][j] = _flatProofIndices[lastCutoffIndex + j];
-        }
+        uint256[][] memory proofIndices = _receiveMultiDimensionalProofIndices(
+            _flatProofIndices,
+            _proofIndicesCutoffs
+        ); // Solidity doesnt support passing multi-dimensional array yet
 
         _addWasCompliantDataCommitmentsForUsers(
             _users,
@@ -751,13 +733,6 @@ contract JuriNetworkProxy is Ownable {
             address user = _users[i];
             bytes32 wasCompliantCommitment = _wasCompliantDataCommitments[i];
 
-            NodeForUserState storage nodeForUserState
-                = _getCurrentStateForNodeForUser(node, user);
-            require(
-                nodeForUserState.complianceDataCommitment == 0x0,
-                "You already added the complianceDataCommitment for that user!"
-            );
-
             _addValidUser(
                 user,
                 node,
@@ -855,6 +830,36 @@ contract JuriNetworkProxy is Ownable {
                     currentCompliance + complianceDataChange
                     : currentCompliance - complianceDataChange;
         }
+    }
+
+    function _receiveMultiDimensionalProofIndices(
+        uint256[] memory _flatProofIndices,
+        uint256[] memory _proofIndicesCutoffs
+    ) internal returns (uint256[][] memory) {
+        uint256[][] memory proofIndices = new uint256[][](_proofIndicesCutoffs.length + 1);
+        uint256 lastCutoffIndex = 0;
+
+        for (uint256 i = 0; i < proofIndices.length - 1; i++) {
+            proofIndices[i] = new uint256[](
+                _proofIndicesCutoffs[i] - (lastCutoffIndex)
+            );
+
+            for (uint256 j = 0; j < proofIndices[i].length; j++) {
+                proofIndices[i][j] = _flatProofIndices[lastCutoffIndex + j];
+            }
+
+            lastCutoffIndex = _proofIndicesCutoffs[i];
+        }
+        
+        proofIndices[proofIndices.length - 1] = new uint256[](
+            _flatProofIndices.length - lastCutoffIndex
+        );
+
+        for (uint256 j = 0; j < proofIndices[proofIndices.length - 1].length; j++) {
+            proofIndices[proofIndices.length - 1][j] = _flatProofIndices[lastCutoffIndex + j];
+        }
+
+        return proofIndices;
     }
 
     function _getStateForCurrentRound()
