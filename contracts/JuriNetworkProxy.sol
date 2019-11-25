@@ -74,25 +74,22 @@ contract JuriNetworkProxy is Ownable {
         _;
     }
 
-    modifier checkIfNextStage() {
+    modifier currentStageTimeIsFinished {
         uint256 timeForStage = timesForStages[uint256(currentStage)];
 
         if (currentStage == Stages.USER_ADDING_HEART_RATE_DATA) {
             uint256 secondsSinceStart = now.sub(startTime);
             uint256 secondsSinceStartNextPeriod = roundIndex.mul(timeForStage);
 
-            if (secondsSinceStart >= secondsSinceStartNextPeriod) {
-                _moveToNextStage();
-            }
-        } else if (currentStage == Stages.SLASHING_PERIOD) {
-            // cannot automatically move to next stage as we need the correct
-            // update logic for all nodes via postOutgoingMessage
+            require(
+                secondsSinceStart >= secondsSinceStartNextPeriod,
+                'USER_ADDING_HEART_RATE_DATA not yet finished!'
+            );
+        } else {
             require(
                 now >= lastStageUpdate.add(timeForStage),
-                'You cannot move to the next round before slashing period is finished!'
+                'Current stage not yet finished!'
             );
-        } else if (now >= lastStageUpdate.add(timeForStage)) {
-            _moveToNextStage();
         }
 
         _;
@@ -188,7 +185,7 @@ contract JuriNetworkProxy is Ownable {
     // TODO What if not called in time?
     function moveToNextRound()
         public
-        atStage(Stages.SLASHING_PERIOD) {
+        atStage(Stages.SLASHING_PERIOD) currentStageTimeIsFinished {
         uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
         uint32 totalActivity
             = stateForRound[roundIndex].totalActivityCount;
@@ -241,31 +238,10 @@ contract JuriNetworkProxy is Ownable {
         }
     }
 
-    function moveToDissentPeriod()
-        public
-        atStage(Stages.NODES_ADDING_RESULT_REVEALS)
-        checkIfNextStage {
-        // do nothing
-    }
-
-    function moveToSlashingPeriod()
-        public
-        atStage(Stages.DISSENTS_NODES_ADDING_RESULT_REVEALS)
-        checkIfNextStage {
-        // do nothing
-    }
-
-    function moveFromDissentToNextPeriod()
-        public
-        atStage(Stages.DISSENTING_PERIOD)
-        checkIfNextStage {
-        // do nothing
-    }
-
     function addHeartRateDateForPoolUser(
         bytes32 _userWorkoutSignature,
         string memory _heartRateDataStoragePath
-    ) public checkIfNextStage atStage(Stages.USER_ADDING_HEART_RATE_DATA) {
+    ) public atStage(Stages.USER_ADDING_HEART_RATE_DATA) {
         // TODO verify signature, HOW ?
         // TODO optional: enforce storage path fits msg.sender
 
@@ -289,7 +265,7 @@ contract JuriNetworkProxy is Ownable {
         bytes32[] memory _wasCompliantDataCommitments,
         uint256[] memory _flatProofIndices,
         uint256[] memory _proofIndicesCutoffs
-    ) public checkIfNextStage atStage(Stages.NODES_ADDING_RESULT_COMMITMENTS) {
+    ) public atStage(Stages.NODES_ADDING_RESULT_COMMITMENTS) {
         uint256[][] memory proofIndices = _receiveMultiDimensionalProofIndices(
             _flatProofIndices,
             _proofIndicesCutoffs
@@ -304,17 +280,11 @@ contract JuriNetworkProxy is Ownable {
 
     function addDissentWasCompliantDataCommitmentsForUsers(
         address[] memory _users,
-        bytes32[] memory _wasCompliantDataCommitments
-        
-    ) public
-        checkIfNextStage
-        atStage(Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS) {
-        uint256[][] memory _proofIndices = new uint256[][](0);
-
-        _addWasCompliantDataCommitmentsForUsers(
+        bytes32[] memory _wasCompliantDataCommitments 
+    ) public atStage(Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS) {
+        _dissentAddWasCompliantDataCommitmentsForUsers(
             _users,
-            _wasCompliantDataCommitments,
-            _proofIndices
+            _wasCompliantDataCommitments
         );
     }
 
@@ -322,7 +292,7 @@ contract JuriNetworkProxy is Ownable {
         address[] memory _users,
         bool[] memory _wasCompliantData,
         bytes32[] memory _randomNonces
-    ) public checkIfNextStage atStage(Stages.NODES_ADDING_RESULT_REVEALS) {
+    ) public  atStage(Stages.NODES_ADDING_RESULT_REVEALS) {
         bool isVotingStakeBased = false;
 
         _addWasCompliantDataForUsers(
@@ -338,7 +308,6 @@ contract JuriNetworkProxy is Ownable {
         bool[] memory _wasCompliantData,
         bytes32[] memory _randomNonces
     ) public
-        checkIfNextStage
         atStage(Stages.DISSENTS_NODES_ADDING_RESULT_REVEALS) {
         bool isVotingStakeBased = true;
 
@@ -352,7 +321,6 @@ contract JuriNetworkProxy is Ownable {
 
     function dissentToAcceptedAnswers(address[] memory _users)
         public
-        checkIfNextStage
         atStage(Stages.DISSENTING_PERIOD)
     {
         address node = msg.sender;
@@ -429,6 +397,23 @@ contract JuriNetworkProxy is Ownable {
 
         totalJuriFeesAtWithdrawalTimes[_roundIndex][msg.sender] = totalJuriFeesForRound;
         juriFeesToken.transfer(node, juriFeesTokenAmount);
+    }
+
+    function moveToNextStage() public currentStageTimeIsFinished {
+        require(
+            currentStage != Stages.SLASHING_PERIOD,
+            'Please use moveToNextRound to progress the stage!'
+        );
+
+        if (currentStage == Stages.DISSENTING_PERIOD) {
+            currentStage = dissentedUsers.length > 0
+                ? Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS
+                : Stages.SLASHING_PERIOD;
+        } else {
+            currentStage = Stages((uint256(currentStage) + 1) % 7);
+        }
+
+        lastStageUpdate = now;
     }
 
     /// INTERFACE METHODS
@@ -698,16 +683,35 @@ contract JuriNetworkProxy is Ownable {
         );
     }
 
-    function _moveToNextStage() internal {
-        if (currentStage == Stages.DISSENTING_PERIOD) {
-            currentStage = dissentedUsers.length > 0
-                ? Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS
-                : Stages.SLASHING_PERIOD;
-        } else {
-            currentStage = Stages((uint256(currentStage) + 1) % 7);
-        }
+    function _dissentAddWasCompliantDataCommitmentsForUsers(
+        address[] memory _users,
+        bytes32[] memory _wasCompliantDataCommitments
+    ) internal {
+        address node = msg.sender;
 
-        lastStageUpdate = now;
+        require(
+            _users.length == _wasCompliantDataCommitments.length,
+            'Users length should match wasCompliantDataCommitments!'
+        );
+
+        for (uint256 i = 0; i < _users.length; i++) {
+            address user = _users[i];
+            bytes32 wasCompliantCommitment = _wasCompliantDataCommitments[i];
+            NodeForUserState storage nodeForUserState = stateForRound[roundIndex]
+                .nodeStates[node]
+                .nodeForUserStates[user];
+
+            require(
+                stateForRound[roundIndex].userStates[user].dissented,
+                'At least one of the passed users was not dissented!'
+            );
+            require(
+                nodeForUserState.complianceDataCommitment == 0x0,
+                'You already submitted results for at least one of the passed users!'
+            );
+
+            nodeForUserState.complianceDataCommitment = wasCompliantCommitment;
+        }
     }
 
     function _addWasCompliantDataCommitmentsForUsers(
@@ -721,9 +725,9 @@ contract JuriNetworkProxy is Ownable {
             _users.length == _wasCompliantDataCommitments.length,
             'Users length should match wasCompliantDataCommitments!'
         );
+
         require(
-            _users.length == _proofIndices.length
-            || currentStage == Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS,
+            _users.length == _proofIndices.length,
             'Users length should match proofIndices!'
         );
 
@@ -793,8 +797,10 @@ contract JuriNetworkProxy is Ownable {
 
         for (uint256 i = 0; i < _users.length; i++) {
             address user = _users[i];
-            NodeForUserState storage nodeForUserState
-                = _getCurrentStateForNodeForUser(node, user);
+            UserState storage userState = stateForRound[roundIndex].userStates[user];
+            NodeState storage nodeState = stateForRound[roundIndex].nodeStates[node];
+            NodeForUserState storage nodeForUserState = nodeState.nodeForUserStates[user];
+
             bool wasCompliant = _wasCompliantData[i];
             bytes32 commitment = nodeForUserState.complianceDataCommitment;
             bytes32 randomNonce = _randomNonces[i];
@@ -803,8 +809,7 @@ contract JuriNetworkProxy is Ownable {
             );
 
             require(
-                _getCurrentStateForUser(user).dissented
-                    || nodeForUserState.wasAssignedToUser,
+                userState.dissented || nodeForUserState.wasAssignedToUser,
                 'You were not assigned to the user!'
             );
             require(
@@ -825,10 +830,9 @@ contract JuriNetworkProxy is Ownable {
             int256 complianceDataChange = _isVotingStakeBased
                 ? int256(nodeStakeCount)
                 : int256(nodeForUserState.proofIndicesCount);
-            stateForRound[roundIndex].userStates[user].userComplianceData
-                = wasCompliant ?
-                    currentCompliance + complianceDataChange
-                    : currentCompliance - complianceDataChange;
+            userState.userComplianceData = wasCompliant
+                ? currentCompliance + complianceDataChange
+                : currentCompliance - complianceDataChange;
         }
     }
 

@@ -27,18 +27,6 @@ contract JuriNetworkProxyMock is JuriNetworkProxy {
         _minStakePerNode
     ) public { }
 
-    function moveToNextStage() public {
-        lastStageUpdate = now;
-
-        if (currentStage == Stages.DISSENTING_PERIOD) {
-            currentStage = dissentedUsers.length > 0
-                ? Stages.DISSENTS_NODES_ADDING_RESULT_COMMITMENTS
-                : Stages.SLASHING_PERIOD;
-        } else {
-            currentStage = Stages((uint256(currentStage) + 1) % 7);
-        }
-    }
-
     function moveToUserAddingHeartRateDataStage() public {
         currentStage = Stages.USER_ADDING_HEART_RATE_DATA;
         lastStageUpdate = now;
