@@ -149,9 +149,14 @@ contract JuriBonding is Ownable {
         );
         hasBeenSlashed[roundIndex][_incorrectResultUser][INCORRECT_RESULT_SLASH] = true;
 
+        bool hasRevealed = proxy.getHasRevealed(roundIndex, _toSlashNode, _notRevealedUser);
         bool givenAnswer = proxy.getGivenNodeResult(roundIndex, _toSlashNode, _incorrectResultUser);
         bool acceptedAnswer = proxy.getUserComplianceData(roundIndex, _incorrectResultUser) > 0;
 
+        require(
+            hasRevealed,
+            "The passed node has not added any result for this node!"
+        );
         require(
             givenAnswer != acceptedAnswer,
             "The passed node did not give an incorrect result!"
