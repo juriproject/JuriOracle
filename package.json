@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/juriproject/JuriOracle#readme",
   "devDependencies": {
+    "@openzeppelin/test-helpers": "^0.5.4",
     "babel-eslint": "^10.0.3",
     "chai": "^4.2.0",
     "clear-module": "^4.0.0",
@@ -34,8 +35,5 @@
     "truffle": "^5.1.1",
     "truffle-hdwallet-provider": "^1.0.17",
     "truffle-plugin-verify": "^0.3.5"
-  },
-  "dependencies": {
-    "openzeppelin-test-helpers": "^0.3.2"
   }
 }
