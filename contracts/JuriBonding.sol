@@ -149,7 +149,7 @@ contract JuriBonding is Ownable {
         );
         hasBeenSlashed[roundIndex][_incorrectResultUser][INCORRECT_RESULT_SLASH] = true;
 
-        bool hasRevealed = proxy.getHasRevealed(roundIndex, _toSlashNode, _notRevealedUser);
+        bool hasRevealed = proxy.getHasRevealed(roundIndex, _toSlashNode, _incorrectResultUser);
         bool givenAnswer = proxy.getGivenNodeResult(roundIndex, _toSlashNode, _incorrectResultUser);
         bool acceptedAnswer = proxy.getUserComplianceData(roundIndex, _incorrectResultUser) > 0;
 
