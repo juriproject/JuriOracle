@@ -37,6 +37,18 @@ contract JuriNetworkProxyMock is JuriNetworkProxy {
         lastStageUpdate = now;
     }
 
+    function addComplianceDataForUsers(
+        address[] memory _users,
+        int256[] memory _wasCompliantData
+    ) public {
+        for (uint256 i = 0; i < _users.length; i++) {
+            address user = _users[i];
+            int256 wasCompliant = _wasCompliantData[i];
+
+            stateForRound[roundIndex].userStates[user].userComplianceData = wasCompliant; 
+        }
+    }
+
     function addHeartRateDateForPoolUser(
         bytes32 _userWorkoutSignature,
         string memory _heartRateDataStoragePath
@@ -52,7 +64,7 @@ contract JuriNetworkProxyMock is JuriNetworkProxy {
     function debugMoveToNextRound()
         public
         view
-        atStage(Stages.SLASHING_PERIOD)
+        atStage(Stages.SLASHING_PERIOD) currentStageTimeIsFinished
         returns (bytes memory) {
         uint256 nodesUpdateIndex = stateForRound[roundIndex].nodesUpdateIndex;
         uint32 totalActivity

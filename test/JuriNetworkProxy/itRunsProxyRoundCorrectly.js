@@ -1,11 +1,15 @@
 const { expect } = require('chai')
-const { BN, ether, shouldFail, time } = require('openzeppelin-test-helpers')
+const { BN, ether, expectRevert, time } = require('@openzeppelin/test-helpers')
 const Web3Utils = require('web3-utils')
 
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
+const JuriTokenMock = artifacts.require('./lib/JuriTokenMock.sol')
 const JuriBonding = artifacts.require('./JuriBonding.sol')
-const JuriNetworkProxy = artifacts.require('./JuriNetworkProxy.sol')
+const JuriNetworkProxyMock = artifacts.require('./JuriNetworkProxyMock.sol')
 const SkaleFileStorageMock = artifacts.require('./SkaleFileStorageMock.sol')
+const SkaleMessageProxySideMock = artifacts.require(
+  './SkaleMessageProxySideMock.sol'
+)
 
 const {
   findLowestHashProofIndexes,
@@ -21,19 +25,21 @@ const itRunsProxyRoundCorrectly = async addresses => {
     let bonding,
       incorrectDissentPenalty,
       incorrectResultPenalty,
+      juriFoundation,
       juriNode1,
       juriNode2,
       juriNode3,
       juriNode4,
       juriNode5,
       juriNode6,
-      networkProxy,
+      networkProxyMock,
       notRevealPenalty,
       poolUser1,
       poolUser2,
       poolUser3,
       poolUser4,
       skaleFileStorage,
+      skaleMessageProxySideMock,
       offlinePenalty,
       juriToken
 
@@ -54,28 +60,40 @@ const itRunsProxyRoundCorrectly = async addresses => {
       notRevealPenalty = new BN(20)
       incorrectResultPenalty = new BN(35)
       incorrectDissentPenalty = new BN(40)
+      skaleMessageProxySideMock = await SkaleMessageProxySideMock.new()
       skaleFileStorage = await SkaleFileStorageMock.new()
       juriFeesToken = await ERC20Mintable.new()
-      juriToken = await ERC20Mintable.new()
-      networkProxy = await JuriNetworkProxy.new(
+      juriToken = await JuriTokenMock.new()
+
+      const skaleMessageProxyMain = await juriToken.skaleMessageProxy()
+
+      networkProxyMock = await JuriNetworkProxyMock.new(
         juriFeesToken.address,
         juriToken.address,
+        juriToken.address,
+        skaleMessageProxySideMock.address,
+        skaleMessageProxyMain,
         skaleFileStorage.address,
         juriFoundation,
-        duration.days(7),
-        duration.hours(1),
-        duration.hours(1),
-        duration.hours(1),
-        duration.hours(1),
-        duration.hours(1),
-        duration.hours(1),
-        ether('1000'),
-        offlinePenalty,
-        notRevealPenalty,
-        incorrectResultPenalty,
-        incorrectDissentPenalty
+        [
+          duration.days(7),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+        ],
+        [
+          offlinePenalty,
+          notRevealPenalty,
+          incorrectResultPenalty,
+          incorrectDissentPenalty,
+        ],
+        ether('1000')
       )
-      bonding = await JuriBonding.at(await networkProxy.bonding())
+
+      bonding = await JuriBonding.at(await networkProxyMock.bonding())
 
       await Promise.all(
         addresses
@@ -92,13 +110,13 @@ const itRunsProxyRoundCorrectly = async addresses => {
           )
       )
 
-      await networkProxy.registerJuriStakingPool(poolUser1)
-      await networkProxy.debugIncreaseRoundIndex()
+      await networkProxyMock.registerJuriStakingPool(poolUser1)
+      await networkProxyMock.debugIncreaseRoundIndex()
 
       await runSetupRound({
         node: juriNode1,
         user: poolUser1,
-        proxy: networkProxy,
+        proxy: networkProxyMock,
       })
     })
 
@@ -137,7 +155,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       const proofIndexes = lowestProofIndexesWithHashes.map(a => a.proofIndexes)
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         lowestHashes,
         nodes,
@@ -148,17 +166,16 @@ const itRunsProxyRoundCorrectly = async addresses => {
       })
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToDissentPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveFromDissentToNextPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
 
       for (let i = 0; i < users.length; i++) {
-        const wasCompliant = (await networkProxy.getUserComplianceData(
-          2,
-          users[i]
-        )).gt(new BN(0))
+        const wasCompliant = (
+          await networkProxyMock.getUserComplianceData(2, users[i])
+        ).gt(new BN(0))
 
         expect(wasCompliant).to.be.equal(wasCompliantData[i])
       }
@@ -168,7 +185,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       const users = [poolUser1, poolUser1, poolUser2]
 
       for (let i = 1; i < users.length; i++) {
-        await networkProxy.addHeartRateDateForPoolUser(
+        await networkProxyMock.addHeartRateDateForPoolUser(
           `0x00156c6c6f576f726c6448656c6c6f576f726c6448656c6c6f576f726c642100`,
           `0x01/123-heartRateData.xml`,
           { from: users[i] }
@@ -176,6 +193,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       }
 
       await increase(duration.days(7).add(duration.minutes(5)))
+      await networkProxyMock.moveToNextStage()
 
       const proofIndexes = [10, 22, 32]
       const wasCompliantData = [true, true, false]
@@ -190,15 +208,18 @@ const itRunsProxyRoundCorrectly = async addresses => {
         Web3Utils.soliditySha3(wasCompliantData[2], randomNonces[2]),
       ]
 
-      await networkProxy.addWasCompliantDataCommitmentsForUsers(
+      await networkProxyMock.addWasCompliantDataCommitmentsForUsers(
         users,
         commitments,
         proofIndexes,
+        proofIndexes.map((_, i) => i).filter(e => e !== 0),
         { from: juriNode1 }
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.addWasCompliantDataForUsers(
+      await networkProxyMock.moveToNextStage()
+
+      await networkProxyMock.addWasCompliantDataForUsers(
         users.slice(1),
         wasCompliantData.slice(1),
         randomNonces.slice(1),
@@ -206,22 +227,21 @@ const itRunsProxyRoundCorrectly = async addresses => {
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToDissentPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveFromDissentToNextPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
 
       for (let i = 0; i < users.length; i++) {
-        const wasCompliant = (await networkProxy.getUserComplianceData(
-          2,
-          users[i]
-        )).gt(new BN(0))
+        const wasCompliant = (
+          await networkProxyMock.getUserComplianceData(2, users[i])
+        ).gt(new BN(0))
 
         expect(wasCompliant).to.be.equal(wasCompliantData[i])
       }
 
-      const getNodeActivityCount = await networkProxy.getNodeActivityCount(
+      const getNodeActivityCount = await networkProxyMock.getNodeActivityCount(
         2,
         juriNode1
       )
@@ -252,7 +272,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         nodes,
         proofIndexes,
@@ -275,8 +295,8 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runDissentRound({
-        proxy: networkProxy,
-        dissenterNode: nodes[0],
+        proxy: networkProxyMock,
+        dissenterNode: nodes[2],
         commitments: dissentCommitments,
         nodes: dissentNodes,
         randomNonces: dissentRandomNonces,
@@ -310,7 +330,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
     })
 
     it('runs the round correctly with not reveal slashing', async () => {
@@ -337,27 +357,27 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         nodes,
         proofIndexes,
         randomNonces,
         users,
         wasCompliantData,
-        notRevealNodes: [nodes[0]],
+        notRevealNodes: [nodes[2]],
       })
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToDissentPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveFromDissentToNextPeriod()
+      await networkProxyMock.moveToNextStage()
 
-      const stakedBalanceToSlashBefore = await bonding.bondedStakes(nodes[0])
+      const stakedBalanceToSlashBefore = await bonding.bondedStakes(nodes[2])
       const stakedBalanceSlasherBefore = await bonding.bondedStakes(nodes[1])
-      await bonding.slashStakeForNotRevealing(nodes[0], users[0], {
+      await bonding.slashStakeForNotRevealing(nodes[2], users[0], {
         from: nodes[1],
       })
-      const stakedBalanceToSlashAfter = await bonding.bondedStakes(nodes[0])
+      const stakedBalanceToSlashAfter = await bonding.bondedStakes(nodes[2])
       const stakedBalanceSlasherAfter = await bonding.bondedStakes(nodes[1])
 
       expect(stakedBalanceToSlashAfter.newStake).to.be.bignumber.equal(
@@ -378,7 +398,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
     })
 
     it('runs the round correctly with incorrect dissent slashing', async () => {
@@ -405,7 +425,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         nodes,
         proofIndexes,
@@ -428,8 +448,8 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runDissentRound({
-        proxy: networkProxy,
-        dissenterNode: nodes[0],
+        proxy: networkProxyMock,
+        dissenterNode: nodes[2],
         commitments: dissentCommitments,
         nodes: dissentNodes,
         randomNonces: dissentRandomNonces,
@@ -437,12 +457,12 @@ const itRunsProxyRoundCorrectly = async addresses => {
         wasCompliantData: dissentWasCompliantData,
       })
 
-      const stakedBalanceToSlashBefore = await bonding.bondedStakes(nodes[0])
+      const stakedBalanceToSlashBefore = await bonding.bondedStakes(nodes[2])
       const stakedBalanceSlasherBefore = await bonding.bondedStakes(nodes[1])
-      await bonding.slashStakeForIncorrectDissenting(nodes[0], users[0], {
+      await bonding.slashStakeForIncorrectDissenting(nodes[2], users[0], {
         from: nodes[1],
       })
-      const stakedBalanceToSlashAfter = await bonding.bondedStakes(nodes[0])
+      const stakedBalanceToSlashAfter = await bonding.bondedStakes(nodes[2])
       const stakedBalanceSlasherAfter = await bonding.bondedStakes(nodes[1])
 
       expect(stakedBalanceToSlashAfter.newStake).to.be.bignumber.equal(
@@ -463,7 +483,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
     })
 
     it('runs the round correctly with incorrect result slashing', async () => {
@@ -475,7 +495,10 @@ const itRunsProxyRoundCorrectly = async addresses => {
         '0x48656c6c6f576f726c6448656c6c6f576f726c6448656c6c6f576f726c642100',
         '0x58656c6c6f576f726c6448656c6c6f576f726c6448656c6c6f576f726c642100',
       ]
-      const proofIndexes = [[100, 200], [100, 200]]
+      const proofIndexes = [
+        [100, 200],
+        [100, 200],
+      ]
       const commitments = [
         Web3Utils.soliditySha3(wasCompliantData[0], randomNonces[0]),
         Web3Utils.soliditySha3(wasCompliantData[1], randomNonces[1]),
@@ -496,7 +519,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       ]
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         nodes,
         proofIndexes,
@@ -506,7 +529,7 @@ const itRunsProxyRoundCorrectly = async addresses => {
       })
 
       await runDissentRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         dissenterNode: nodes[0],
         commitments: dissentCommitments,
         nodes: dissentNodes,
@@ -544,10 +567,11 @@ const itRunsProxyRoundCorrectly = async addresses => {
       )
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
     })
 
     it('allows retrieving juri fees as round reward for participating nodes', async () => {
+      const roundIndex = await networkProxyMock.roundIndex()
       const nodes = [juriNode1, juriNode2]
       const users = [poolUser1, poolUser2]
       const wasCompliantData = [true, true]
@@ -555,14 +579,17 @@ const itRunsProxyRoundCorrectly = async addresses => {
         '0x48656c6c6f576f726c6448656c6c6f576f726c6448656c6c6f576f726c642100',
         '0x58656c6c6f576f726c6448656c6c6f576f726c6448656c6c6f576f726c642100',
       ]
-      const proofIndexes = [[100, 200], [100, 200]]
+      const proofIndexes = [
+        [100, 200],
+        [100, 200],
+      ]
       const commitments = [
         Web3Utils.soliditySha3(wasCompliantData[0], randomNonces[0]),
         Web3Utils.soliditySha3(wasCompliantData[1], randomNonces[1]),
       ]
 
       await runFirstHalfOfRound({
-        proxy: networkProxy,
+        proxy: networkProxyMock,
         commitments,
         nodes,
         proofIndexes,
@@ -572,18 +599,32 @@ const itRunsProxyRoundCorrectly = async addresses => {
       })
 
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToDissentPeriod()
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveFromDissentToNextPeriod()
-      await juriFeesToken.mint(networkProxy.address, ether('100'))
+      await networkProxyMock.moveToNextStage()
       await increase(duration.hours(1).add(duration.minutes(5)))
-      await networkProxy.moveToNextRound()
+      await networkProxyMock.moveToNextRound()
 
-      await networkProxy.retrieveRoundJuriFees(2, { from: juriNode1 })
-      await networkProxy.retrieveRoundJuriFees(2, { from: juriNode2 })
+      const juriFeesTokenAmount = ether('100')
+      await juriFeesToken.mint(juriFoundation, juriFeesTokenAmount)
+      await juriFeesToken.approve(
+        networkProxyMock.address,
+        juriFeesTokenAmount,
+        { from: juriFoundation }
+      )
+      await networkProxyMock.handleJuriFees(roundIndex, juriFeesTokenAmount, {
+        from: juriFoundation,
+      })
 
-      await shouldFail.reverting.withMessage(
-        networkProxy.retrieveRoundJuriFees(2, { from: juriNode3 }),
+      await networkProxyMock.retrieveRoundJuriFees(roundIndex, {
+        from: juriNode1,
+      })
+      await networkProxyMock.retrieveRoundJuriFees(roundIndex, {
+        from: juriNode2,
+      })
+
+      await expectRevert(
+        networkProxyMock.retrieveRoundJuriFees(roundIndex, { from: juriNode3 }),
         'Node did not participate this round!'
       )
 

@@ -1,5 +1,5 @@
 const { expect } = require('chai')
-const { BN, ether, time } = require('openzeppelin-test-helpers')
+const { BN, ether, time } = require('@openzeppelin/test-helpers')
 
 const {
   deployJuriStakingPool,
@@ -10,6 +10,11 @@ const {
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
 const JuriBonding = artifacts.require('./JuriBonding.sol')
 const JuriNetworkProxyMock = artifacts.require('./JuriNetworkProxyMock.sol')
+const JuriTokenMock = artifacts.require('./JuriTokenMock.sol')
+const SkaleMessageProxySideMock = artifacts.require(
+  './SkaleMessageProxySideMock.sol'
+)
+const SkaleFileStorageMock = artifacts.require('./SkaleFileStorageMock.sol')
 
 const { duration } = time
 
@@ -28,16 +33,31 @@ const itRunsStakingPoolWithOracleRoundCorrectly = async addresses => {
       juriFoundation = addresses[4]
 
       juriFeesToken = await ERC20Mintable.new()
-      juriToken = await ERC20Mintable.new()
+      juriToken = await JuriTokenMock.new()
+
+      const skaleMessageProxySideMock = await SkaleMessageProxySideMock.new()
+      const skaleMessageProxyMain = await juriToken.skaleMessageProxy()
+      const skaleFileStorage = await SkaleFileStorageMock.new()
+
       proxyMock = await JuriNetworkProxyMock.new(
         juriFeesToken.address,
         juriToken.address,
+        juriToken.address,
+        skaleMessageProxySideMock.address,
+        skaleMessageProxyMain,
+        skaleFileStorage.address,
         juriFoundation,
-        ether('1000'),
-        10,
-        20,
-        40,
-        40
+        [
+          duration.days(7),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+          duration.hours(1),
+        ],
+        [new BN(10), new BN(20), new BN(35), new BN(40)],
+        ether('1000')
       )
       bonding = await JuriBonding.at(await proxyMock.bonding())
 
@@ -59,7 +79,7 @@ const itRunsStakingPoolWithOracleRoundCorrectly = async addresses => {
       compliantGainPercentage = new BN(4)
       maxNonCompliantPenaltyPercentage = new BN(5)
 
-      const deployedContracts = await deployJuriStakingPool({
+      pool = await deployJuriStakingPool({
         addresses,
         networkProxy: proxyMock,
         periodLength: duration.days(7),
@@ -70,16 +90,16 @@ const itRunsStakingPoolWithOracleRoundCorrectly = async addresses => {
         maxStakePerUser: 100000,
         maxTotalStake: 10000000,
         juriAddress: addresses[0],
+        token: juriFeesToken,
       })
 
-      pool = deployedContracts.pool
-      daiToken = deployedContracts.token
+      proxyMock.registerJuriStakingPool(pool.address)
 
       await initialPoolSetup({
         pool,
         poolStakes,
         poolUsers,
-        token: daiToken,
+        token: juriFeesToken,
       })
     })
 

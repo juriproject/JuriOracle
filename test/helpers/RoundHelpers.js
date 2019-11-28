@@ -1,6 +1,6 @@
 const Heap = require('heap')
 
-const { BN, ether, time } = require('openzeppelin-test-helpers')
+const { BN, ether, time } = require('@openzeppelin/test-helpers')
 const Web3Utils = require('web3-utils')
 
 const JuriStakingPoolWithOracle = artifacts.require(
@@ -182,14 +182,17 @@ const runSetupRound = async ({ node, proxy, user }) => {
   const proofIndex = 100
   const commitment = Web3Utils.soliditySha3(wasCompliant, randomNonce)
 
+  await proxy.moveToNextStage()
   await proxy.addWasCompliantDataCommitmentsForUsers(
     users,
     [commitment],
     [proofIndex],
+    [],
     { from: node }
   )
   await increase(duration.hours(1).add(duration.minutes(5)))
 
+  await proxy.moveToNextStage()
   await proxy.addWasCompliantDataForUsers(
     users,
     [wasCompliant],
@@ -198,10 +201,11 @@ const runSetupRound = async ({ node, proxy, user }) => {
   )
 
   await increase(duration.hours(1).add(duration.minutes(5)))
-  await proxy.moveToDissentPeriod()
+  await proxy.moveToNextStage()
   await increase(duration.hours(1).add(duration.minutes(5)))
-  await proxy.moveFromDissentToNextPeriod()
+  await proxy.moveToNextStage()
   await increase(duration.hours(1).add(duration.minutes(5)))
+
   await proxy.moveToNextRound()
 }
 
@@ -263,6 +267,7 @@ const addLowestHashes = async ({
       mappedUsers,
       mappedCommitments,
       mappedProofIndexes,
+      mappedProofIndexes.map((_, i) => i).filter(e => e !== 0),
       { from: node }
     )
   }
@@ -304,6 +309,7 @@ const runFirstHalfOfRound = async ({
   }
 
   await increase(duration.days(7).add(duration.minutes(5)))
+  await proxy.moveToNextStage()
 
   for (let i = 0; i < nodes.length; i++) {
     if (i > 1 && lowestHashes) {
@@ -362,20 +368,23 @@ const runFirstHalfOfRound = async ({
           mappedUsers,
           mappedCommitments,
           mappedProofIndexes,
+          mappedProofIndexes.map((_, i) => i).filter(e => e !== 0),
           { from: nodes[i] }
         )
-      } else {
+      } else
         await proxy.addWasCompliantDataCommitmentsForUsers(
           users,
           commitments,
           proofIndexes[i],
+          proofIndexes[i].map((_, i) => i).filter(e => e !== 0),
           { from: nodes[i] }
         )
-      }
     }
   }
 
   await increase(duration.hours(1).add(duration.minutes(5)))
+  await proxy.moveToNextStage()
+
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
 
@@ -394,6 +403,7 @@ const runFirstHalfOfRound = async ({
         const mappedRandomNonces = assignedUsersIndexes.map(
           index => randomNonces[index]
         )
+
         await proxy.addWasCompliantDataForUsers(
           mappedUsers,
           mappedWasCompliantData,
@@ -415,7 +425,7 @@ const runDissentRound = async ({
   wasCompliantData,
 }) => {
   await increase(duration.hours(1).add(duration.minutes(5)))
-  await proxy.moveToDissentPeriod()
+  await proxy.moveToNextStage()
 
   for (let i = 0; i < users.length; i++) {
     const dissentedUser = users[i]
@@ -425,7 +435,7 @@ const runDissentRound = async ({
   }
 
   await increase(duration.hours(1).add(duration.minutes(5)))
-  await proxy.moveFromDissentToNextPeriod()
+  await proxy.moveToNextStage()
 
   for (let i = 0; i < nodes.length; i++) {
     await proxy.addDissentWasCompliantDataCommitmentsForUsers(
@@ -436,6 +446,7 @@ const runDissentRound = async ({
   }
 
   await increase(duration.hours(1).add(duration.minutes(5)))
+  await proxy.moveToNextStage()
 
   for (let i = 0; i < nodes.length; i++) {
     await proxy.addDissentWasCompliantDataForUsers(
@@ -447,7 +458,7 @@ const runDissentRound = async ({
   }
 
   await increase(duration.hours(1).add(duration.minutes(5)))
-  await proxy.moveToSlashingPeriod()
+  await proxy.moveToNextStage()
 }
 
 const approveAndAddUser = ({ pool, stake, token, user }) =>
@@ -465,9 +476,9 @@ const deployJuriStakingPool = async ({
   minStakePerUser,
   maxStakePerUser,
   maxTotalStake,
+  token,
   juriAddress,
 }) => {
-  const token = await ERC20Mintable.new()
   await Promise.all(addresses.map(user => token.mint(user, ether('200'))))
 
   const startTime = (await time.latest()).add(time.duration.seconds(20))
@@ -485,7 +496,7 @@ const deployJuriStakingPool = async ({
     juriAddress
   )
 
-  return { pool, token }
+  return pool
 }
 
 const asyncForEach = async ({ array, callback }) => {
@@ -519,7 +530,7 @@ const initialPoolSetup = async ({ pool, poolStakes, poolUsers, token }) => {
 const runPoolRound = async ({ complianceData, pool, proxyMock, poolUsers }) => {
   await time.increase(duration.days(7))
 
-  await proxyMock.incrementRoundIndex()
+  await proxyMock.debugIncreaseRoundIndex()
   await proxyMock.addComplianceDataForUsers(poolUsers, complianceData)
 
   await pool.checkNewAddedComplianceData(50)

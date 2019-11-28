@@ -192,12 +192,13 @@ contract JuriNetworkProxy is Ownable {
         uint256 totalBonded = bonding.totalBonded();
 
         uint256 totalNodesCount = bonding.stakingNodesAddressCount(roundIndex);
-        uint256 updateNodesCount = totalNodesCount > MAX_NODES_PER_UPDATE
+        uint256 totalLeftNodesCount = totalNodesCount.sub(nodesUpdateIndex);
+        uint256 updateNodesCount = totalLeftNodesCount > MAX_NODES_PER_UPDATE
             ? MAX_NODES_PER_UPDATE
-            : totalNodesCount;
+            : totalLeftNodesCount;
 
         address[] memory nodesToUpdate
-            = bonding.receiveNodesAtIndex(nodesUpdateIndex, MAX_NODES_PER_UPDATE);
+            = bonding.receiveNodesAtIndex(nodesUpdateIndex, updateNodesCount);
         uint32[] memory nodesActivity = new uint32[](updateNodesCount);
         
         for (uint256 i = 0; i < updateNodesCount; i++) {
@@ -839,7 +840,7 @@ contract JuriNetworkProxy is Ownable {
     function _receiveMultiDimensionalProofIndices(
         uint256[] memory _flatProofIndices,
         uint256[] memory _proofIndicesCutoffs
-    ) internal returns (uint256[][] memory) {
+    ) internal pure returns (uint256[][] memory) {
         uint256[][] memory proofIndices = new uint256[][](_proofIndicesCutoffs.length + 1);
         uint256 lastCutoffIndex = 0;
 

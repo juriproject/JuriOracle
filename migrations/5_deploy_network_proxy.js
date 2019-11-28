@@ -5,6 +5,7 @@ const fs = require('fs')
 const { users } = require('../config/accounts')
 
 const ERC20Mintable = artifacts.require('./lib/ERC20Mintable.sol')
+const JuriNetworkProxy = artifacts.require('./JuriNetworkProxy.sol')
 const JuriNetworkProxyMock = artifacts.require('./JuriNetworkProxyMock.sol')
 const JuriStakingPoolWithOracleMock = artifacts.require(
   'JuriStakingPoolWithOracleMock'
@@ -33,13 +34,16 @@ const toEther = number => number.mul(new BN(10).pow(new BN(18)))
 module.exports = (deployer, network) => {
   deployer.then(async () => {
     await deployer.deploy(MaxHeapLibrary)
+    await deployer.link(MaxHeapLibrary, [JuriNetworkProxy])
     await deployer.link(MaxHeapLibrary, [JuriNetworkProxyMock])
 
     const skaleFileStorageAddress =
       network === 'development'
-        ? (await deployer.deploy(
-            artifacts.require('./SkaleFileStorageMock.sol')
-          )).address
+        ? (
+            await deployer.deploy(
+              artifacts.require('./SkaleFileStorageMock.sol')
+            )
+          ).address
         : '0x69362535ec535f0643cbf62d16adedcaf32ee6f7'
 
     const juriFeesToken = await deployer.deploy(ERC20Mintable)
